@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "huggingface"
+version = "0.1.0"
+description = ""
+authors = ["Mathieu Rene <mathieu@humanfirst.ai>"]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.11"
+transformers = "==4.30.0"
+tensorflow = "^2.11.1"
+numpy = "^1.22.3"
+bidict = "^0.22.0"
+grpcio = "^1.53.0"
+
+[tool.poetry.dev-dependencies]
+jupyter = "^1.0.0"
+grpcio-tools = "^1.47.0"
+mypy-protobuf = "^3.2.0"
+tensorflow-addons = "^0.16.1"
+sentence-transformers = "^2.2.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

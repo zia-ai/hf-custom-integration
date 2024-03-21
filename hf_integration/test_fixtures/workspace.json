@@ -1,0 +1,1119 @@
+{
+  "intents": [
+    {
+      "id": "intent-44ZDA7WZYJPYJL6MSTREWROW",
+      "name": "bot_challenge",
+      "source": {
+        "source_id": "bot_challenge"
+      },
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS",
+      "name": "greet",
+      "source": {
+        "source_id": "greet"
+      },
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5",
+      "name": "mood_great",
+      "source": {
+        "source_id": "mood_great"
+      },
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "intent-J5F4LI4FJ5IFFBZ2EGXJ25OF",
+      "name": "affirm",
+      "source": {
+        "source_id": "affirm"
+      },
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "intent-K3JK4UQRMJPCJLSLZ74UNGLF",
+      "name": "goodbye",
+      "source": {
+        "source_id": "goodbye"
+      },
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI",
+      "name": "mood_unhappy",
+      "source": {
+        "source_id": "mood_unhappy"
+      },
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "intent-ZOATXV2CQVLLDNI7F4WCU4EI",
+      "name": "deny",
+      "source": {
+        "source_id": "deny"
+      },
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    }
+  ],
+  "examples": [
+    {
+      "id": "phrase-3RJRV63UYZE4ZNUO6Q6SAXZR",
+      "text": "are you a human?",
+      "intents": [
+        {
+          "intent_id": "intent-44ZDA7WZYJPYJL6MSTREWROW"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-JGCEWIHVE5BBDHSFOLG37WRT",
+      "text": "am I talking to a bot?",
+      "intents": [
+        {
+          "intent_id": "intent-44ZDA7WZYJPYJL6MSTREWROW"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-QSM3HVZNJFA6ZOYDAR7E75AF",
+      "text": "are you a bot?",
+      "intents": [
+        {
+          "intent_id": "intent-44ZDA7WZYJPYJL6MSTREWROW"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-XF5MIMIZJZH6DIIPBMYDVKYN",
+      "text": "am I talking to a human?",
+      "intents": [
+        {
+          "intent_id": "intent-44ZDA7WZYJPYJL6MSTREWROW"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-75FYYJG6AVEZRI3KTFNW3FNS",
+      "text": "hi",
+      "intents": [
+        {
+          "intent_id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-ALMIJYQNKJBLJPFVBENJLMHF",
+      "text": "good evening NYC",
+      "intents": [
+        {
+          "intent_id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS"
+        }
+      ],
+      "entities": [
+        {
+          "entity_id": "entity-TNOSTSLZ6BC4XEOFBP5GF4ZH",
+          "name": "timeofday",
+          "text": "evening",
+          "span": {
+            "from_character": 5,
+            "to_character": 12
+          },
+          "value": "evening",
+          "value_id": "entval-AXPFASDSURB2JO4TMYJJY2JF"
+        },
+        {
+          "entity_id": "entity-3DNR3VGATZBMNOLEPCINZPST",
+          "name": "city",
+          "text": "NYC",
+          "span": {
+            "from_character": 13,
+            "to_character": 16
+          },
+          "value": "New York City",
+          "value_id": "entval-QULOZYU2RVBUZOBNXCRQ3DIU",
+          "role": "location"
+        }
+      ],
+      "parts": [
+        {
+          "text": "good "
+        },
+        {
+          "text": "",
+          "entity": {
+            "entity_id": "entity-TNOSTSLZ6BC4XEOFBP5GF4ZH",
+            "name": "timeofday",
+            "text": "evening",
+            "value": "evening",
+            "value_id": "entval-AXPFASDSURB2JO4TMYJJY2JF"
+          }
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "",
+          "entity": {
+            "entity_id": "entity-3DNR3VGATZBMNOLEPCINZPST",
+            "name": "city",
+            "text": "NYC",
+            "value": "New York City",
+            "value_id": "entval-QULOZYU2RVBUZOBNXCRQ3DIU",
+            "role": "location"
+          }
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-CCP2PBZFGZBYJGBF3FE5Z5CD",
+      "text": "hey there",
+      "intents": [
+        {
+          "intent_id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-CWM6RJ7KANBBXEBHHDNDCWFX",
+      "text": "good morning NYC",
+      "intents": [
+        {
+          "intent_id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS"
+        }
+      ],
+      "entities": [
+        {
+          "entity_id": "entity-TNOSTSLZ6BC4XEOFBP5GF4ZH",
+          "name": "timeofday",
+          "text": "morning",
+          "span": {
+            "from_character": 5,
+            "to_character": 12
+          },
+          "value": "morning",
+          "value_id": "entval-BF67VRX5UVA5DJTMCEUX4R2J"
+        },
+        {
+          "entity_id": "entity-3DNR3VGATZBMNOLEPCINZPST",
+          "name": "city",
+          "text": "NYC",
+          "span": {
+            "from_character": 13,
+            "to_character": 16
+          },
+          "value": "New York City",
+          "value_id": "entval-QULOZYU2RVBUZOBNXCRQ3DIU",
+          "role": "location"
+        }
+      ],
+      "parts": [
+        {
+          "text": "good "
+        },
+        {
+          "text": "",
+          "entity": {
+            "entity_id": "entity-TNOSTSLZ6BC4XEOFBP5GF4ZH",
+            "name": "timeofday",
+            "text": "morning",
+            "value": "morning",
+            "value_id": "entval-BF67VRX5UVA5DJTMCEUX4R2J"
+          }
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "",
+          "entity": {
+            "entity_id": "entity-3DNR3VGATZBMNOLEPCINZPST",
+            "name": "city",
+            "text": "NYC",
+            "value": "New York City",
+            "value_id": "entval-QULOZYU2RVBUZOBNXCRQ3DIU",
+            "role": "location"
+          }
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-JXJC5M6L4ZAWJHKAR2BCTNEI",
+      "text": "goodmorning",
+      "intents": [
+        {
+          "intent_id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-KNNYZHIL3JCPLO4SAMYGIKQI",
+      "text": "good afternoon",
+      "intents": [
+        {
+          "intent_id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS"
+        }
+      ],
+      "entities": [
+        {
+          "entity_id": "entity-TNOSTSLZ6BC4XEOFBP5GF4ZH",
+          "name": "timeofday",
+          "text": "afternoon",
+          "span": {
+            "from_character": 5,
+            "to_character": 14
+          },
+          "value": "afternoon",
+          "value_id": "entval-BSEO56YFCRBVBG7SL5ZM3F7E"
+        }
+      ],
+      "parts": [
+        {
+          "text": "good "
+        },
+        {
+          "text": "",
+          "entity": {
+            "entity_id": "entity-TNOSTSLZ6BC4XEOFBP5GF4ZH",
+            "name": "timeofday",
+            "text": "afternoon",
+            "value": "afternoon",
+            "value_id": "entval-BSEO56YFCRBVBG7SL5ZM3F7E"
+          }
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-NLGUOPRI5NBF5MADVPH6UKWD",
+      "text": "moin",
+      "intents": [
+        {
+          "intent_id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-O4QJSLYL35FNFINVLEEQ7GZM",
+      "text": "hey dude",
+      "intents": [
+        {
+          "intent_id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-OYD7NN24PRFVZAZ3FFFJO2BL",
+      "text": "hello",
+      "intents": [
+        {
+          "intent_id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-PWIXMFZAXVHYFOVPKUM3VXH4",
+      "text": "hello there",
+      "intents": [
+        {
+          "intent_id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-QHXRZWO45JAKPJFQGSRBO2F4",
+      "text": "goodevening",
+      "intents": [
+        {
+          "intent_id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-SJ6NESHPRJGXLHAQAM4WTW3G",
+      "text": "let's go",
+      "intents": [
+        {
+          "intent_id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-YPMXFKCHSNCOJDMU5IAVKFEY",
+      "text": "hey",
+      "intents": [
+        {
+          "intent_id": "intent-GYEKPUFIJ5MEVINPZ6TNZXJS"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-2ODFY3COMJD3LNSMZN6ZITWU",
+      "text": "I am amazing",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-3LL7FLU3SNETLMTD7SCKT4Y3",
+      "text": "I am feeling very good",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-AHOD5LGJ5RBDVJBRA6F3HWBX",
+      "text": "my mood is © 2022 Acme Inc",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "entities": [
+        {
+          "entity_id": "entity-35ND4NVSOVE6DNMUFZQXSGSN",
+          "name": "copyright",
+          "text": "©",
+          "span": {
+            "from_character": 11,
+            "to_character": 13
+          },
+          "value": "©",
+          "value_id": "entval-ZA422D4RKZAFTLEFNOCINQTW"
+        }
+      ],
+      "parts": [
+        {
+          "text": "my mood is "
+        },
+        {
+          "text": "",
+          "entity": {
+            "entity_id": "entity-35ND4NVSOVE6DNMUFZQXSGSN",
+            "name": "copyright",
+            "text": "©",
+            "value": "©",
+            "value_id": "entval-ZA422D4RKZAFTLEFNOCINQTW"
+          }
+        },
+        {
+          "text": " 2022 Acme Inc"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-DDAZANLOCVGQTI72O6MNAKGK",
+      "text": "so so perfect",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-DFUH56SOZZCOLN2VH4MOTX3V",
+      "text": "I am going to save the world",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-DLSCQON6IVBGJMXPEPMPDYIZ",
+      "text": "extremely good",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-DPITEPE2WNAGZP4QWPA2H3CK",
+      "text": "my mood is copyright 2022 Acme Inc",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "entities": [
+        {
+          "entity_id": "entity-35ND4NVSOVE6DNMUFZQXSGSN",
+          "name": "copyright",
+          "text": "copyright",
+          "span": {
+            "from_character": 11,
+            "to_character": 20
+          },
+          "value": "copyright",
+          "value_id": "entval-PJ3JSBSYTVHKVAHTYJDN4RZT"
+        }
+      ],
+      "parts": [
+        {
+          "text": "my mood is "
+        },
+        {
+          "text": "",
+          "entity": {
+            "entity_id": "entity-35ND4NVSOVE6DNMUFZQXSGSN",
+            "name": "copyright",
+            "text": "copyright",
+            "value": "copyright",
+            "value_id": "entval-PJ3JSBSYTVHKVAHTYJDN4RZT"
+          }
+        },
+        {
+          "text": " 2022 Acme Inc"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-FWLE5SAMHRFIJA7Z2FYSLAWK",
+      "text": "so perfect",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-I6JYGU6T5ZHEFHAKQOUK23XI",
+      "text": "so good",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-MDAC42LHIVHT3DQ4G26H5H32",
+      "text": "wonderful",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-RPAU4YPYQZGI3A3Z6CT4S7QR",
+      "text": "super stoked",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-SUOPDMXTMNDDZLHHITD5QT5I",
+      "text": "у меня отличное [настроение]",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-T4REOZJTBFEDBKN5NI3V3BD6",
+      "text": "amazing",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-TD3UQHIYEBH35NCK4GXNBK6E",
+      "text": "great",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-V6DL4WMQZREORMKSKOUECPGZ",
+      "text": "feeling like a king",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-WNVRJRHRFNCB5KCGPHOOIPEG",
+      "text": "I am great",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-YYLX3V25K5DLNLK3BMXJ37XL",
+      "text": "perfect",
+      "intents": [
+        {
+          "intent_id": "intent-HO5KGF6Y3NMSPBHOQALJQYC5"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-5LJ3GTEUOBHMHPM6CJLOWWKQ",
+      "text": "y",
+      "intents": [
+        {
+          "intent_id": "intent-J5F4LI4FJ5IFFBZ2EGXJ25OF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-7VQFGX6IXNE5JEQHOYG2TSVA",
+      "text": "that sounds good",
+      "intents": [
+        {
+          "intent_id": "intent-J5F4LI4FJ5IFFBZ2EGXJ25OF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-AXKTU3XUENEHHGTA33NGWT2L",
+      "text": "yes",
+      "intents": [
+        {
+          "intent_id": "intent-J5F4LI4FJ5IFFBZ2EGXJ25OF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-KVA55O23KBCIJFKLZO577V2U",
+      "text": "indeed",
+      "intents": [
+        {
+          "intent_id": "intent-J5F4LI4FJ5IFFBZ2EGXJ25OF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-XJS6H4QZ7ND3FEBMYMTR46DV",
+      "text": "of course",
+      "intents": [
+        {
+          "intent_id": "intent-J5F4LI4FJ5IFFBZ2EGXJ25OF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-ZSMIOVHSYZAXXG57JMW3DRKE",
+      "text": "correct",
+      "intents": [
+        {
+          "intent_id": "intent-J5F4LI4FJ5IFFBZ2EGXJ25OF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-7BJLS5PPJBC2ROG25Q3J6NVT",
+      "text": "see you around",
+      "intents": [
+        {
+          "intent_id": "intent-K3JK4UQRMJPCJLSLZ74UNGLF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-C6WRYHH5VRBRFO75JQKTLRMS",
+      "text": "see you later",
+      "intents": [
+        {
+          "intent_id": "intent-K3JK4UQRMJPCJLSLZ74UNGLF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-CAZJMAJCIZEJPCW22SH7VHTX",
+      "text": "bye bye",
+      "intents": [
+        {
+          "intent_id": "intent-K3JK4UQRMJPCJLSLZ74UNGLF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-EZFOBR7CIJGZFJGHPZPINTEL",
+      "text": "bye",
+      "intents": [
+        {
+          "intent_id": "intent-K3JK4UQRMJPCJLSLZ74UNGLF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-F3BSJMII4BG6VLGBE7475MC3",
+      "text": "goodbye",
+      "intents": [
+        {
+          "intent_id": "intent-K3JK4UQRMJPCJLSLZ74UNGLF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-JT245XMBZRHSNDZZOD6D5WXZ",
+      "text": "have a nice day",
+      "intents": [
+        {
+          "intent_id": "intent-K3JK4UQRMJPCJLSLZ74UNGLF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-LR4PVLWDH5AUBMRB3CEXAY7K",
+      "text": "good night",
+      "intents": [
+        {
+          "intent_id": "intent-K3JK4UQRMJPCJLSLZ74UNGLF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-ME34UM6SBBGDDCXPFBSMQSAC",
+      "text": "cu",
+      "intents": [
+        {
+          "intent_id": "intent-K3JK4UQRMJPCJLSLZ74UNGLF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-QR56QD3ZRFHVHB5KBOLQHRMJ",
+      "text": "good by",
+      "intents": [
+        {
+          "intent_id": "intent-K3JK4UQRMJPCJLSLZ74UNGLF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-TMRU7CL4GRE5RHH4PMYHKCB5",
+      "text": "cee you later",
+      "intents": [
+        {
+          "intent_id": "intent-K3JK4UQRMJPCJLSLZ74UNGLF"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-24Q3I3CFGFAMBFE533WDJAIW",
+      "text": "extremly sad",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-26XT23XE7JG6XDDW2W3INQ24",
+      "text": "I'm so sad",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-35MW6C3C25FZRMQBTEWWD55H",
+      "text": "I don't feel very well",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-43UVPRRUYJA47C7Q4WZYKDQK",
+      "text": "very sad",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-6JXZOEMJSJB67J7POZB2Z56U",
+      "text": "I am disappointed",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-GHNSQJUZL5A7TC3A3JVFEPQ5",
+      "text": "unhappy",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-GZ5FSZQSQJAKNDYIE44ET5OP",
+      "text": "so sad",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-IFHUJA25SNBOPOW5IGQCXUNI",
+      "text": "my day was horrible",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-JF5EQOZX2FGL7CLZCGHE6TJX",
+      "text": "sad",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-JMOEIZ4HVJEOZGPSVQLOUKRH",
+      "text": "not good",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-P34NDUEUZJGETNPDJMC5ZY4X",
+      "text": "super sad",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-UTTKMZITBBGX3JDGOVKFVGKL",
+      "text": "so saad",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-W3GDT56YM5BD5HEWBH5JRDX5",
+      "text": "I am sad",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-X2RULCVXGJADBHJUPIQRFDVC",
+      "text": "not very good",
+      "intents": [
+        {
+          "intent_id": "intent-QOJAGI3HA5NW3EKPZ6BUVGSI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-6DNBD7AQ6VBENEMKHQG2HRTE",
+      "text": "I don't think so",
+      "intents": [
+        {
+          "intent_id": "intent-ZOATXV2CQVLLDNI7F4WCU4EI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-7SBOFTTNQBHQ5F7BV54RTHGE",
+      "text": "never",
+      "intents": [
+        {
+          "intent_id": "intent-ZOATXV2CQVLLDNI7F4WCU4EI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-HZTBOVT6MFDXFITCPDWZRJNB",
+      "text": "not really",
+      "intents": [
+        {
+          "intent_id": "intent-ZOATXV2CQVLLDNI7F4WCU4EI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-KS2N4HSV3BB3VIHL7Q7IOFUJ",
+      "text": "don't like that",
+      "intents": [
+        {
+          "intent_id": "intent-ZOATXV2CQVLLDNI7F4WCU4EI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-M2EONGL2TFFVFFOUNITH6FZQ",
+      "text": "no way",
+      "intents": [
+        {
+          "intent_id": "intent-ZOATXV2CQVLLDNI7F4WCU4EI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-NW2UZEXDNFFUBNX5VVBU4CVF",
+      "text": "n",
+      "intents": [
+        {
+          "intent_id": "intent-ZOATXV2CQVLLDNI7F4WCU4EI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "phrase-PTVLGHJDOJD75JMZYKZHYNVB",
+      "text": "no",
+      "intents": [
+        {
+          "intent_id": "intent-ZOATXV2CQVLLDNI7F4WCU4EI"
+        }
+      ],
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    }
+  ],
+  "entities": [
+    {
+      "id": "entity-35ND4NVSOVE6DNMUFZQXSGSN",
+      "name": "copyright",
+      "values": [
+        {
+          "id": "entval-PJ3JSBSYTVHKVAHTYJDN4RZT",
+          "key_value": "copyright",
+          "created_at": "2022-04-11T19:57:59Z",
+          "updated_at": "2022-04-11T19:57:59Z"
+        },
+        {
+          "id": "entval-ZA422D4RKZAFTLEFNOCINQTW",
+          "key_value": "©",
+          "created_at": "2022-04-11T19:57:59Z",
+          "updated_at": "2022-04-11T19:57:59Z"
+        }
+      ],
+      "source": {
+        "source_id": "copyright"
+      },
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "entity-3DNR3VGATZBMNOLEPCINZPST",
+      "name": "city",
+      "values": [
+        {
+          "id": "entval-QULOZYU2RVBUZOBNXCRQ3DIU",
+          "key_value": "New York City",
+          "created_at": "2022-04-11T19:57:59Z",
+          "updated_at": "2022-04-11T19:57:59Z"
+        }
+      ],
+      "source": {
+        "source_id": "city"
+      },
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    },
+    {
+      "id": "entity-TNOSTSLZ6BC4XEOFBP5GF4ZH",
+      "name": "timeofday",
+      "values": [
+        {
+          "id": "entval-AXPFASDSURB2JO4TMYJJY2JF",
+          "key_value": "evening",
+          "created_at": "2022-04-11T19:57:59Z",
+          "updated_at": "2022-04-11T19:57:59Z"
+        },
+        {
+          "id": "entval-BF67VRX5UVA5DJTMCEUX4R2J",
+          "key_value": "morning",
+          "created_at": "2022-04-11T19:57:59Z",
+          "updated_at": "2022-04-11T19:57:59Z"
+        },
+        {
+          "id": "entval-BSEO56YFCRBVBG7SL5ZM3F7E",
+          "key_value": "afternoon",
+          "created_at": "2022-04-11T19:57:59Z",
+          "updated_at": "2022-04-11T19:57:59Z"
+        }
+      ],
+      "source": {
+        "source_id": "timeofday"
+      },
+      "created_at": "2022-04-11T19:57:59Z",
+      "updated_at": "2022-04-11T19:57:59Z"
+    }
+  ]
+}

@@ -1,0 +1,200 @@
+syntax = "proto3";
+package zia.ai.external_integration.v1alpha1;
+
+import "external_nlu/v1alpha1/service.proto";
+import "playbook/data/config/v1alpha1/config.proto";
+
+option go_package = "github.com/zia-ai/platform/pkg/api/external_integration/v1alpha1;external_integration_v1alpha1";
+
+service Models {
+    // List the models supported by this integration
+    rpc ListModels(ListModelsRequest) returns (ListModelsResponse) {}
+
+    // Get information about a specific model. The application may request unlisted models if they are manually entered by the user.
+    rpc GetModel(GetModelRequest) returns (Model) {}
+
+    // Retrieves the parameters to use for a TrainModel request (such as the expected workspace export format)
+    rpc GetTrainParameters(GetTrainParametersRequest) returns (GetTrainParametersResponse) {}
+
+    // Trains (or fine-tunes) a model based on a workspace export
+    rpc TrainModel(TrainModelRequest) returns (TrainModelResponse) {}
+
+    // Deletes a model that is no longer required
+    rpc DeleteModel(DeleteModelRequest) returns (DeleteModelResponse) {}
+
+    // Indicates that the given model is no longer immediately needed and can be unloaded from memory.
+    // If the model is ephemeral, this is equivalent to a deletion because it was not persisted to disk.
+    rpc UnloadModel(UnloadModelRequest) returns (UnloadModelResponse) {}
+
+    // Classify multiple examples
+    rpc Classify(ClassifyRequest) returns (ClassifyResponse) {}
+
+    // Embed input examples into a latent space
+    rpc Embed(EmbedRequest) returns (EmbedResponse) {}
+}
+
+message Model {
+    // A unique identifier used for identifying this models in future API calls
+    string id = 1;
+
+    // The name of the model which should be displayed to the user
+    string display_name = 2;
+
+    // Set if this model can project input phrases into a latent representation
+    EmbedConfig embeddings = 3;
+
+    // Set if this model can directly classify examples
+    ClassificationConfig classification = 4;
+}
+
+message ClassificationConfig {
+    // Maximum batch size sent in a single request
+    uint32 max_batch_size = 1;
+}
+
+message ListModelsRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+}
+
+message ListModelsResponse {
+    // The list of available models
+    repeated Model models = 1;
+}
+
+message GetTrainParametersRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+}
+
+message GetTrainParametersResponse {
+    // The format to use when exporting the workspace's data
+    zia.ai.playbook.data.config.v1alpha1.IntentsDataFormat data_format = 1;
+
+    // Options of the format of the exported data.
+    // Only the options related to the data format are considered. Predicates filtering the data by tags are not considered.
+    zia.ai.playbook.data.config.v1alpha1.IntentsDataOptions format_options = 2;
+}
+
+message TrainModelRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+
+    // The format of the data field
+    zia.ai.playbook.data.config.v1alpha1.IntentsDataFormat data_format = 3;
+
+    // Options of the format of the exported data.
+    zia.ai.playbook.data.config.v1alpha1.IntentsDataOptions format_options = 4;
+
+    // The workspace export
+    bytes data = 6;
+}
+
+message TrainModelResponse {
+    // Model that was trained
+    Model model = 1;
+}
+
+message DeleteModelRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+
+    // The (integration side) id of the model to delete
+    string model_id = 3;
+}
+
+message DeleteModelResponse {
+}
+
+message UnloadModelRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+
+    // The (integration side) id of the model to delete
+    string model_id = 3;
+}
+
+message UnloadModelResponse {
+}
+
+message ClassifyRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+
+    // The (integration side)  id of the model to use for classification
+    string model_id = 3;
+
+    // The examples to classify
+    repeated zia.ai.external_nlu.v1alpha1.Example examples = 4;
+}
+
+message ClassifyResponse {
+    // List of predictions for the requested batch, this will contain as many elements
+    // as present in the `examples` request parameter.
+    repeated zia.ai.external_nlu.v1alpha1.Predictions predictions = 1;
+}
+
+message GetModelRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+
+    // The (integration side) id of the model to delete
+    string model_id = 3;
+}
+
+message EmbedConfig {
+    // Dimensionality of the latent space
+    uint32 dimensionality = 1;
+
+    // Maximum batch size sent in a single request
+    uint32 max_batch_size = 2;
+
+    // Maximum size of tokens of inputs.
+    uint32 max_token_size = 3;
+
+    // Maximum number of tokens per input.
+    uint32 max_token_count = 4;
+}
+
+message EmbedRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+
+    // The (integration side) model id to use for embedding
+    string model_id = 3;
+
+    // The verbatim content of the text to embed
+    repeated string examples = 4;
+}
+
+message EmbedResponse {
+    // Packed vectors. Size must be equal to all elements of shape multiplied together (in numpy layout).
+    repeated float data = 2;
+
+    // The shape of the returned data (used as a sanity check, the last value must match `model_spec.dimension`)
+    repeated uint32 shape = 3;
+}
