@@ -132,9 +132,9 @@ docker run -it --rm -v /tmp/hf:/tmp/hf -v $(pwd):/src -p 8443:8443 example-integ
 
 **Note:**
 
-**1. Merge while immporting into HF tool works only for addition of intents, entities, tags, phrases. Updation and deletion of exisiting phrases/intent/entites in the CLU are not reflected in the merge process**
+**1. Merge while importing into HF tool works only for addition of intents, entities, tags, phrases. Updation and deletion of existing phrases/intent/entities in the CLU are not reflected in the merge process**
 
-**2. Export from HF to any NLU platfrom, would completely overwrite the exisiting information in the NLU platform**
+**2. Export from HF to any NLU platfrom, would completely overwrite the existing information in the NLU platform**
 
 **3. It is suggested to use clear everything before import from any NLU platform**
 
@@ -143,3 +143,5 @@ docker run -it --rm -v /tmp/hf:/tmp/hf -v $(pwd):/src -p 8443:8443 example-integ
 **5. CLU JSON does not have IDs for intents, entities and training/testing phrases. So this makes it difficult to get changes made even using any custom scripts in the backend**
 
 **6. Tags in HF workspace, upon exporting the workspace to CLU do not cause any changes in CLU except for the Train and Test tags used in labelled phrases**
+
+**7. Integration is created under assumption that entities in MS CLU workspace is both learned and list to make the entity mapping work seamlessly. Not all clients will be willing to annotate all the list entities in MS CLU workspace. An easy way is to bring the workspace into HF and use Find annotations button and annotate everything and push it back to CLU**
