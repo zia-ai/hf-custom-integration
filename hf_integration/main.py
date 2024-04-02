@@ -6,7 +6,6 @@ and the key-value pairs are sepeated by ,
 """
 import sys, json, threading, gc
 from typing import Any, Dict, Optional
-
 from hf_integration.humanfirst.protobuf.external_integration.v1alpha1 import workspace_pb2
 # from .models.huggingface.intent_entity import IntentEntityPipeline, Trainer
 from dataclasses import dataclass

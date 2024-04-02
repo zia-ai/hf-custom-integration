@@ -126,8 +126,8 @@ Example command installing CLI-1.35.0
 You can also build a docker container for the integration and launch it directly:
 
 ```
-docker build -t example-integration .
-docker run -it --rm -v /tmp/hf:/tmp/hf -v $(pwd):/src -p 8443:8443 example-integration ./mtls-credentials.json 0.0.0.0:8443
+docker build -t hf-integration .
+docker run -it --rm -v $(pwd):/src -p 443:443 hf-integration ./mtls-credentials.json 0.0.0.0:443 <integration-generic,clu,example> "<config - key1::value1,key2::value2,..,keyN::valueN>"
 ```
 
 **Note:**
