@@ -1,0 +1,26 @@
+syntax = "proto3";
+package zia.ai.external_integration.v1alpha1;
+
+option go_package = "github.com/zia-ai/platform/pkg/api/external_integration/v1alpha1;external_integration_v1alpha1";
+
+service Discovery {
+    // Gets the services supported by this integration
+    rpc GetCapabilities(GetCapabilitiesRequest) returns (GetCapabilitiesResponse) {}
+}
+
+message GetCapabilitiesRequest {
+}
+
+message GetCapabilitiesResponse {
+    // True if this integration supports externally trained embedding models.
+    bool supports_models = 1;
+
+    // True if this integration supports importing and exporting workspaces.
+    bool supports_workspaces = 2;
+
+    // If non-zero, the amount of concurrent models being trained, or loaded, will be limited to this number
+    uint32 max_concurrent_models = 10;
+
+    // If non-zero, specifies the maximum number of examples in a single Classify request
+    uint32 model_classification_batch_size = 11;
+}

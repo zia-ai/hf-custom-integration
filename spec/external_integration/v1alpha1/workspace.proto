@@ -1,0 +1,139 @@
+syntax = "proto3";
+package zia.ai.external_integration.v1alpha1;
+
+import "playbook/data/config/v1alpha1/config.proto";
+
+option go_package = "github.com/zia-ai/platform/pkg/api/external_integration/v1alpha1;external_integration_v1alpha1";
+
+service Workspaces {
+    // Gets the workspaces supported by this integration
+    rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse) {}
+
+    // Get information about a specific workspace. The application may request unlisted workspaces if they are manually entered by the user.
+    rpc GetWorkspace(GetWorkspaceRequest) returns (Workspace) {}
+
+    // Creates a new blank workspace in order to import things
+    rpc CreateWorkspace(CreateWorkspaceRequest) returns (Workspace) {}
+
+    // Retrieves the parameters to use for an Export request (such as the expected workspace export format)
+    rpc GetImportParameters(GetImportParametersRequest) returns (GetImportParametersResponse) {}
+
+    // Imports a workspace into the integration. This is triggered by a workspace export from Studio.
+    // It can optionally reference an existing workspace, in which case the integration would replace the relevant part of the training data.
+    rpc ImportWorkspace(ImportWorkspaceRequest) returns (ImportWorkspaceResponse) {}
+
+    // Exports a workspace from the integration. This is triggered by a workspace import from Studio.
+    rpc ExportWorkspace(ExportWorkspaceRequest) returns (ExportWorkspaceResponse) {}
+}
+
+message Workspace {
+    // A unique identifier for the workspace
+    string id = 1;
+
+    // The user-visible name linked to this workspace
+    string name = 2;
+
+    // The user-visible description (if available)
+    string description = 3;
+}
+
+message ListWorkspacesRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+}
+
+message ListWorkspacesResponse {
+    // The list of workspaces
+    repeated Workspace workspaces = 1;
+}
+
+message GetWorkspaceRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+
+    // The id of the workspace
+    string workspace_id = 3;
+}
+
+message CreateWorkspaceRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+
+    // Workspace to create
+    Workspace workspace = 3;
+}
+
+message GetImportParametersRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+
+    // The id of the workspace
+    string workspace_id = 3;
+}
+
+message GetImportParametersResponse {
+    // The format to use when exporting the workspace's data
+    zia.ai.playbook.data.config.v1alpha1.IntentsDataFormat data_format = 1;
+
+    // Options of the format of the exported data.
+    // Only the options related to the data format are considered. Predicates filtering the data by tags are not considered.
+    zia.ai.playbook.data.config.v1alpha1.IntentsDataOptions format_options = 2;
+}
+
+message ImportWorkspaceRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+
+    // The id of the workspace
+    string workspace_id = 3;
+
+    // The format of the data
+    zia.ai.playbook.data.config.v1alpha1.IntentsDataFormat data_format = 4;
+
+    // Options of the format of the exported data.
+    zia.ai.playbook.data.config.v1alpha1.IntentsDataOptions format_options = 5;
+
+    // The data to import
+    bytes data = 6;
+}
+
+message ImportWorkspaceResponse {
+    // TODO: Optional id if created?
+}
+
+message ExportWorkspaceRequest {
+    // The namespace in which this integration is located
+    string namespace = 1;
+
+    // The id of the integration
+    string integration_id = 2;
+
+    // The id of the workspace
+    string workspace_id = 3;
+}
+
+message ExportWorkspaceResponse {
+    // The format of the data
+    zia.ai.playbook.data.config.v1alpha1.IntentsDataFormat data_format = 1;
+
+    // Options of the format of the exported data.
+    zia.ai.playbook.data.config.v1alpha1.IntentsDataOptions format_options = 2;
+
+    // The exported data in the given format
+    bytes data = 3;
+}
