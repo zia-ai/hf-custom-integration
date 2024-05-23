@@ -5,11 +5,15 @@ python custom_integration.py
 
 # standard imports
 import re
+import json
 
 # 3rd party imports
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.language.conversations.authoring import ConversationAuthoringClient
 from azure.core.rest import HttpRequest
+
+
+API_VERSION="2023-04-01"
 
 class clu_apis:
     """This class demonstrates CLU APIs"""
@@ -101,3 +105,121 @@ class clu_apis:
         print(f"Export is done successfully")
 
         return response.json()
+    
+    def model_train(self,
+                    project_name: str,
+                    model_label: str = "trained_model",
+                    train_split: int = 80):
+        """Model Train"""
+
+        test_split = 100 - train_split
+        response =  self.client.begin_train(
+                    project_name=project_name,
+                    configuration = {
+                            "modelLabel": model_label,
+                            "trainingMode": "standard",
+                            "evaluationOptions": {
+                                "kind": "percentage",
+                                "testingSplitPercentage": test_split,
+                                "trainingSplitPercentage": train_split
+                            }
+                        },
+                        content_type = "application/json")
+        training_job_status = response.status()
+        print(training_job_status)
+        print(response.result())
+        return response
+
+    def list_trained_model(self,
+                           project_name: str):
+        """List trained model"""
+
+        response = self.client.list_trained_models(project_name=project_name)
+
+        return response
+    
+    def delete_trained_model(self,
+                             project_name: str,
+                             model_label: str):
+        """Delete trained model"""
+
+        self.client.delete_trained_model(
+            project_name=project_name,
+            trained_model_label=model_label
+        )
+    
+    def deploy_trained_model(self,
+                project_name: str,
+                deployment_name: str,
+                model_label: str):
+        """Deploy trained model"""
+
+        response = self.client.begin_deploy_project(
+            project_name=project_name,
+            deployment_name=deployment_name,
+            deployment={
+                        "trainedModelLabel": model_label
+                    },
+            content_type = "application/json"
+        )
+        print(response.result())
+        return response
+
+    def get_trained_model(self,
+                          project_name: str,
+                          model_label: str):
+        """Get trained model"""
+
+        response = self.client.get_trained_model(
+                    project_name=project_name,
+                    trained_model_label=model_label
+        )
+
+        print(response)
+        return response
+
+    def delete_trained_model(self,
+                             project_name: str,
+                             model_label: str):
+        """Delete trained model"""
+
+        self.client.delete_trained_model(
+            project_name=project_name,
+            trained_model_label=model_label
+        )
+
+    def predict(self,
+                project_name: str,
+                deployment_name: str,
+                endpoint: str,
+                text: str):
+        """Predict"""
+
+        data = {
+            "kind": "Conversation",
+            "analysisInput": {
+                "conversationItem": {
+                    "id": "ID1",
+                    "participantId": "ID1",
+                    "text": text
+                }
+            },
+            "parameters": {
+                "projectName": project_name,
+                "deploymentName": deployment_name,
+                "stringIndexType": "TextElement_V8"
+            }
+        }
+
+        response = self.client.send_request(
+            HttpRequest(
+                method="POST",
+                url=f'{endpoint}/language/:analyze-conversations?api-version={API_VERSION}',
+                data=json.dumps(data),  # Convert dictionary to JSON string
+                headers={"Content-Type": "application/json"}  # Specify the content type
+            )
+        )
+
+        response.raise_for_status()  # raises an error if response had error status code
+
+        return response

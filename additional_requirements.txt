@@ -2,4 +2,4 @@ azure-ai-language-conversations==1.1.0
 pandas==2.0.3
 dataclasses==0.6
 dataclasses_json==0.6.4
-humanfirst==1.0.5
+humanfirst==1.1.1

@@ -1,0 +1,12 @@
+{
+  "new_model12345-20240523T120146-ade15bcc6745462f9348001915581e1c": {
+    "project_name": "custnluintg345_20240523114146",
+    "deployment_name": "first_deployment",
+    "model_label": "new_model12345"
+  },
+  "new_model12345-20240523T053530-227ffd6603b74bc380a4516d19a84454": {
+    "project_name": "custnluintg345_20240523114146",
+    "deployment_name": "first_deployment",
+    "model_label": "new_model12345"
+  }
+}

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from .humanfirst.protobuf.external_integration.v1alpha1 import discovery_pb2, discovery_pb2_grpc, models_pb2, models_pb2_grpc, workspace_pb2, workspace_pb2_grpc
 from .humanfirst.protobuf.playbook.data.config.v1alpha1 import config_pb2
 
-# from .model_service import ModelService
+from .model_service import ModelService
 from hf_integration.workspace_generic import WorkspaceServiceGeneric
 from hf_integration.workspace_service import WorkspaceService
 from hf_integration.workspace_clu import WorkspaceServiceCLU
@@ -37,7 +37,7 @@ def main(args):
     grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=100))
 
     discovery_pb2_grpc.add_DiscoveryServicer_to_server(DiscoveryService(), grpc_server)
-    # models_pb2_grpc.add_ModelsServicer_to_server(ModelService(), grpc_server) # Work In Progress
+    models_pb2_grpc.add_ModelsServicer_to_server(ModelService(), grpc_server) # Work In Progress
 
     integration = args[2]
     config = args[3]
