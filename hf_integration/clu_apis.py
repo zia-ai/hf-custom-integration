@@ -223,3 +223,12 @@ class clu_apis:
         response.raise_for_status()  # raises an error if response had error status code
 
         return response
+    
+    def delete_project(self,
+                       project_name: str):
+        """Deletes a project"""
+
+        response = self.client.begin_delete_project(project_name=project_name)
+
+        print(response.result())
+        return response
