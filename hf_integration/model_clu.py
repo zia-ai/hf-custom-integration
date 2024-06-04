@@ -46,6 +46,9 @@ class ModelService(discovery_pb2_grpc.DiscoveryServicer, models_pb2_grpc.ModelsS
             skip_empty_intents=True,
         )
 
+        if not os.path.exists(MODEL_HANDLE_PATH):
+            with open(MODEL_HANDLE_PATH, mode="w", encoding="utf8") as f:
+                json.dump({},f,indent=2)
         with open(MODEL_HANDLE_PATH, mode="r", encoding="utf8") as f:
             self.handle_map = json.load(f)
 
