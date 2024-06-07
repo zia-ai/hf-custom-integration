@@ -172,3 +172,6 @@ max_concurrent_train: int = 1
 max_concurrent_models: int = 2
 
 poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::--"
+
+
+if the eval performs retry logic, then it does not delete the error agent it created in the clu
