@@ -4,16 +4,17 @@ Main script
 Config provided as command line args, the keys and the values are separated by :: 
 and the key-value pairs are sepeated by ,
 """
-import sys, json, threading, gc
-from typing import Any, Dict, Optional
-from hf_integration.humanfirst.protobuf.external_integration.v1alpha1 import workspace_pb2
-# from .models.huggingface.intent_entity import IntentEntityPipeline, Trainer
-from dataclasses import dataclass
 
-from .humanfirst.protobuf.external_integration.v1alpha1 import discovery_pb2, discovery_pb2_grpc, models_pb2, models_pb2_grpc, workspace_pb2, workspace_pb2_grpc
-from .humanfirst.protobuf.playbook.data.config.v1alpha1 import config_pb2
+# standard imports
+import json
+import sys
 
-from .model_clu import ModelService
+# custom imports
+from .humanfirst.protobuf.external_integration.v1alpha1 import discovery_pb2, discovery_pb2_grpc, models_pb2_grpc, workspace_pb2_grpc
+from hf_integration.model_service import ModelService
+from hf_integration.model_generic import ModelServiceGeneric
+from hf_integration.model_clu import ModelServiceCLU
+
 from hf_integration.workspace_generic import WorkspaceServiceGeneric
 from hf_integration.workspace_service import WorkspaceService
 from hf_integration.workspace_clu import WorkspaceServiceCLU
@@ -52,16 +53,18 @@ def main(args):
     
     config = result_dict
     if integration == "generic":
-        intg = WorkspaceServiceGeneric(config=config)
+        workspace_intg = WorkspaceServiceGeneric(config=config)
+        model_intg = ModelServiceGeneric(config=config)
     elif integration == "clu":
-        intg = WorkspaceServiceCLU(config=config)
-    elif integration == "example":
-        intg = WorkspaceServiceExample(config=config)
+        workspace_intg = WorkspaceServiceCLU(config=config)
+        model_intg = ModelServiceCLU(config=config)
+    # elif integration == "example":
+    #     workspace_intg = WorkspaceServiceExample(config=config)
     else:
         raise RuntimeError("Unrecognosed integration")
 
-    workspace_pb2_grpc.add_WorkspacesServicer_to_server(WorkspaceService(integration=intg), grpc_server)
-    models_pb2_grpc.add_ModelsServicer_to_server(ModelService(config=config), grpc_server) # Work In Progress
+    workspace_pb2_grpc.add_WorkspacesServicer_to_server(WorkspaceService(integration=workspace_intg), grpc_server)
+    models_pb2_grpc.add_ModelsServicer_to_server(ModelService(integration=model_intg), grpc_server)
 
 
     # Load the mtls keypair

@@ -13,7 +13,7 @@ import datetime
 from hf_integration.workspace_generic import WorkspaceServiceGeneric
 from hf_integration.clu_apis import clu_apis
 from hf_integration.clu_converters import clu_converter
-from .humanfirst.protobuf.external_integration.v1alpha1 import workspace_pb2, workspace_pb2_grpc
+from .humanfirst.protobuf.external_integration.v1alpha1 import workspace_pb2
 from .humanfirst.protobuf.playbook.data.config.v1alpha1 import config_pb2
 
 API_VERSION = "2023-04-01"

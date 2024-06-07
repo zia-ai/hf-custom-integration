@@ -1,69 +1,42 @@
-# Work in progress
-import threading, gc
-from typing import Any, Dict, Optional
-from dataclasses import dataclass
+"""
+Handles workspaces during import and export
+"""
+
+# standard imports
 import json
-import humanfirst
 import datetime
 from uuid import uuid4
 import os
 
-# from .models.huggingface.intent_entity import IntentEntityPipeline, Trainer
-from .humanfirst.protobuf.external_integration.v1alpha1 import discovery_pb2, discovery_pb2_grpc, models_pb2, models_pb2_grpc
-from .humanfirst.protobuf.external_nlu.v1alpha1 import service_pb2, service_pb2_grpc
-from .humanfirst.protobuf.playbook.data.config.v1alpha1 import config_pb2
+# 3rd party imports
+import humanfirst
+
+# custom imports
+from .humanfirst.protobuf.external_integration.v1alpha1 import models_pb2
+from .humanfirst.protobuf.external_nlu.v1alpha1 import service_pb2
 from .humanfirst.protobuf.external_integration.v1alpha1 import workspace_pb2
 from hf_integration.clu_apis import clu_apis
 from hf_integration.workspace_clu import WorkspaceServiceCLU
+from hf_integration.model_generic import ModelServiceGeneric
 
 SNAPSHOT_PATH = "/home/fayaz/hf-custom-integration/hf_integration/workspaces/"
 MODEL_HANDLE_PATH = "/home/fayaz/hf-custom-integration/hf_integration/data/handlemap.json"
 TRAIN_SPLIT=100
 MAX_BATCH_SIZE=1000
 
-@dataclass
-class IntegrationServiceConfig:
-    max_concurrent_train: int = 1
-    max_concurrent_models: int = 2
+class ModelServiceCLU(ModelServiceGeneric):
+    """
+    This is a model service that can train and run k-fold evaluation
+    """
 
-class ModelService(discovery_pb2_grpc.DiscoveryServicer, models_pb2_grpc.ModelsServicer):
     def __init__(self, config: dict) -> None:
-        super().__init__()
-        self.config = config
+        """Authorization"""
+
+        super().__init__(config)
         self.clu_api = clu_apis(clu_endpoint=self.config["clu_endpoint"],
                                 clu_key=self.config["clu_key"])
         self.workspace = WorkspaceServiceCLU(config=config)
-        self.data_format = config_pb2.IntentsDataFormat.INTENTS_FORMAT_HF_JSON
-        self.format_options = config_pb2.IntentsDataOptions(
-            hierarchical_intent_name_disabled=False,
-            hierarchical_delimiter="",
-            zip_encoding=False,
-            gzip_encoding=True,
-            hierarchical_follow_up=False,
-            include_negative_phrases=False,
-            intent_tag_predicate=None,
-            phrase_tag_predicate=None,
-            skip_empty_intents=False,
-        )
 
-        if not os.path.exists(MODEL_HANDLE_PATH):
-            with open(MODEL_HANDLE_PATH, mode="w", encoding="utf8") as f:
-                json.dump({},f,indent=2)
-        with open(MODEL_HANDLE_PATH, mode="r", encoding="utf8") as f:
-            self.handle_map = json.load(f)
-
-    # def _retain_model(self, model: None) -> int:
-    #     handle = self.next_handle
-    #     self.next_handle += 1
-    #     self.handle_map[handle] = model
-
-    #     return handle
-
-    # def _get_model(self, handle: int) -> Any:
-    #     model = self.handle_map.get(handle)
-    #     if model is None:
-    #         raise RuntimeError("no such handle exists")
-    #     return model
 
     def _flip_dict(self, input_dict, delimiter):
         # Ensure that all values in the original dictionary are unique
@@ -78,27 +51,31 @@ class ModelService(discovery_pb2_grpc.DiscoveryServicer, models_pb2_grpc.ModelsS
 
 
     def ListModels(self, request: models_pb2.ListModelsRequest, context) -> models_pb2.ListModelsResponse:
-        # Indicate that this service does not have any prebuilt models
-        print("\nListModels")
+        """Indicate that this service does not have any prebuilt models"""
+
         return models_pb2.ListModelsResponse()
 
     def GetModel(self, request: models_pb2.GetModelRequest, context) -> models_pb2.Model:
-        # TODO: Implement model store
-        print("\nGetModel")
+        """
+        If model store is implemented, then this requests gets the model from the model store
+        
+        Not implemented yet
+        """
+
         raise NotImplementedError()
 
     def GetTrainParameters(self, request: models_pb2.GetTrainParametersRequest, context) -> models_pb2.GetTrainParametersResponse:
         """Indicate the data format in which training data should be provided"""
-        print("\nGetTrainParameters")
+
         return models_pb2.GetTrainParametersResponse(
             data_format=self.data_format,
             # These are all the default options, except for skip_empty_intents
             format_options=self.format_options
         )
 
+
     def TrainModel(self, request: models_pb2.TrainModelRequest, context) -> models_pb2.TrainModelResponse:
         """Trains a model"""
-        print("\nTrainModel")
 
         # Get the current timestamp
         timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
@@ -176,7 +153,7 @@ class ModelService(discovery_pb2_grpc.DiscoveryServicer, models_pb2_grpc.ModelsS
 
 
     def UnloadModel(self, request: models_pb2.UnloadModelRequest, context) -> models_pb2.UnloadModelResponse:
-        print("\nUnloadModel")
+        """Unload Model"""
 
         project_name = self.handle_map[request.model_id]["project_name"]
         model_label = self.handle_map[request.model_id]["model_label"]
@@ -187,7 +164,7 @@ class ModelService(discovery_pb2_grpc.DiscoveryServicer, models_pb2_grpc.ModelsS
 
 
     def DeleteModel(self, request: models_pb2.DeleteModelRequest, context) -> models_pb2.DeleteModelResponse:
-        print("\nDeleteModel")
+        """Delete Model"""
 
         project_name = self.handle_map[request.model_id]["project_name"]
         self.clu_api.delete_project(
@@ -197,7 +174,7 @@ class ModelService(discovery_pb2_grpc.DiscoveryServicer, models_pb2_grpc.ModelsS
 
 
     def Classify(self, request: models_pb2.ClassifyRequest, context) -> models_pb2.ClassifyResponse:
-        print("\nClassify")
+        """Predicts utterances"""
 
         with open(self.handle_map[request.model_id]["hf_file_path"], mode="r", encoding="utf8") as f:
             hf_json = json.load(f)
@@ -262,10 +239,15 @@ class ModelService(discovery_pb2_grpc.DiscoveryServicer, models_pb2_grpc.ModelsS
             predictions.append(service_pb2.Predictions(
                 matches=go_struct["Predictions"]["matches"],
                 entity_matches=go_struct["Predictions"]["entity_matches"]))
-            # print(predictions)
 
         return models_pb2.ClassifyResponse(predictions=predictions)
 
+
     def Embed(self, request: models_pb2.EmbedRequest, context) -> models_pb2.EmbedResponse:
-        print("\nEmbed")
+        """
+        Embeddings
+
+        Not implemented yet
+        """
+
         raise NotImplementedError()

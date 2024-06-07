@@ -166,3 +166,9 @@ takes into account only that has training phrases in them
 
 specifying the delimiter in GUI whie exporting doesn't do anything.
 Set the delimiter right when you start the integration
+
+
+max_concurrent_train: int = 1
+max_concurrent_models: int = 2
+
+poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::--"
