@@ -43,7 +43,7 @@ class ModelService(discovery_pb2_grpc.DiscoveryServicer, models_pb2_grpc.ModelsS
             include_negative_phrases=False,
             intent_tag_predicate=None,
             phrase_tag_predicate=None,
-            skip_empty_intents=True,
+            skip_empty_intents=False,
         )
 
         if not os.path.exists(MODEL_HANDLE_PATH):
@@ -198,29 +198,22 @@ class ModelService(discovery_pb2_grpc.DiscoveryServicer, models_pb2_grpc.ModelsS
 
     def Classify(self, request: models_pb2.ClassifyRequest, context) -> models_pb2.ClassifyResponse:
         print("\nClassify")
-        model_id = request.model_id
-        namespace = request.namespace
-        playbook = "playbook-UI3HSRIW7VGDVFPUB5JAJALL"
-        delimiter = "-"
-        hf_api = humanfirst.apis.HFAPI()
-        # get all intents
-        all_intents = hf_api.get_intents(namespace, playbook)
-        # print(json.dumps(all_intents,indent=2))
-        hf_json = {
-        "$schema": "https://docs.humanfirst.ai/hf-json-schema.json",
-        "intents": all_intents
-        }
 
-        hf_workspace = humanfirst.objects.HFWorkspace.from_json(hf_json,delimiter)
-        print(hf_workspace.get_intent_index(delimiter=delimiter))
-        intent_index = self._flip_dict(hf_workspace.get_intent_index(delimiter=delimiter),delimiter=delimiter)
+        with open(self.handle_map[request.model_id]["hf_file_path"], mode="r", encoding="utf8") as f:
+            hf_json = json.load(f)
+
+        hf_workspace = humanfirst.objects.HFWorkspace.from_json(hf_json,self.config["delimiter"])
+        intent_index = self._flip_dict(hf_workspace.get_intent_index(
+            delimiter=self.config["delimiter"]),
+            delimiter=self.config["delimiter"]
+        )
 
         predictions = []
         for ex in request.examples:
             print(ex)
             data = self.clu_api.predict(
-                        project_name=self.handle_map[model_id]["project_name"],
-                        deployment_name=self.handle_map[model_id]["deployment_name"],
+                        project_name=self.handle_map[request.model_id]["project_name"],
+                        deployment_name=self.handle_map[request.model_id]["deployment_name"],
                         endpoint=self.config["clu_endpoint"],
                         text = ex.contents).json()
 

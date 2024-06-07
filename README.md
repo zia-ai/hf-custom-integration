@@ -145,3 +145,24 @@ docker run -it --rm -v $(pwd):/src -p 443:443 hf-integration ./mtls-credentials.
 **6. Tags in HF workspace, upon exporting the workspace to CLU do not cause any changes in CLU except for the Train and Test tags used in labelled phrases**
 
 **7. Integration is created under assumption that entities in MS CLU workspace is both learned and list to make the entity mapping work seamlessly. Not all clients will be willing to annotate all the list entities in MS CLU workspace. An easy way is to bring the workspace into HF and use Find annotations button and annotate everything and push it back to CLU**
+
+
+export 4 items
+sudo 443
+give delimitr when starting the integration
+enable train on demand and infer on demand
+
+One more steps to run the CLU 
+download the zia internal cli from circle.ai and chmod 755
+then run the following commands
+zia pb --id <id here> edit
+in “otherNlus”, add a new object, set it to  { "custom": {}, "name": "what you want" } and save it, it’ll fill the id by itself
+
+run the same command again and copy paste the integration id
+
+set ondemand train as 
+
+takes into account only that has training phrases in them
+
+specifying the delimiter in GUI whie exporting doesn't do anything.
+Set the delimiter right when you start the integration

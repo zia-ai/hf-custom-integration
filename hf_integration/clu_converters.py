@@ -208,6 +208,8 @@ class hf_to_clu_converter:
         # TODO: note potential clashes with utf16 and utf8 in future depending on PVA
 
         # get a HFWorkspace object to get fully qualified intent names
+        print("delimiter blah blah")
+        print(delimiter)
         hf_workspace = humanfirst.objects.HFWorkspace.from_json(hf_json,delimiter)
 
         # get the tag for Test dataset
@@ -235,13 +237,18 @@ class hf_to_clu_converter:
 
         # find any intents that were in utterances
         # this avoids creating any parents, but also doesn't create empty children
+        # TODO: Empty intents should be passed if the signal from the request deems it to be
         clu_intent_names = set()
         for clu_utterance in clu_json["assets"]["utterances"]:
             clu_intent_names.add(clu_utterance["intent"])
+        
+        print(clu_intent_names)
         # set to list
         clu_intents = []
         for intent_name in clu_intent_names:
             clu_intents.append(self.hf_to_clu_intent_mapper(intent_name))
+        
+        print(clu_intents)
         #
         clu_json["assets"]["intents"] = clu_intents
 
@@ -336,6 +343,8 @@ class hf_to_clu_converter:
                 warnings.warn(f'Found utterance with tags not list or Na: {row}')
 
         intent_name = hf_workspace.get_fully_qualified_intent_name(row["intents"][0]["intent_id"])
+        print(row["intents"][0]["intent_id"])
+        print(intent_name)
         if len(intent_name) > 50:
             if not skip:
                 raise RuntimeError(f'intent name length of {len(intent_name)} exceeds 50 chars.  {intent_name}')

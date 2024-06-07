@@ -40,7 +40,6 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         """List Workspaces"""
 
         workspaces = []
-        print("CLU ListWorkspace")
         for project in self.clu_api.list_projects():
                 workspaces.append(workspace_pb2.Workspace(id=project, name=project))
 
@@ -58,7 +57,6 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         """
         Create a new workspace
         """
-        print("Create workspace")
         self.clu_api.clu_create_project(project_name=request.workspace.name,
                                         des = request.workspace.description)
 
@@ -123,7 +121,10 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
             }
         }
 
-        clu_json = self.clu_converter.hf_to_clu_process(hf_json, clu_json)
+        clu_json = self.clu_converter.hf_to_clu_process(
+            hf_json=hf_json,
+            clu_json=clu_json,
+            delimiter=self.config["delimiter"])
 
         self._write_json(
             path = clu_file_path,
@@ -147,7 +148,9 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
             path=os.path.join(PATH,"export",f"{timestamp}_clu_{request.namespace}_{request.workspace_id}.json"),
             data = clu_project)
 
-        hf_json = self.clu_converter.clu_to_hf_process(clu_json=clu_project)
+        hf_json = self.clu_converter.clu_to_hf_process(
+            clu_json=clu_project,
+            delimiter=self.config["delimiter"])
 
         self._write_json(
             path=os.path.join(PATH,"export",f"{timestamp}_hf_{request.namespace}_{request.workspace_id}.json"),
