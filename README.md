@@ -100,7 +100,12 @@ Example command installing CLI-1.35.0
 3. Set your namespace `hf namespace use <namespace>`
 4. Create the integration
     ```
-    hf integrations create custom --workspace --name <custom-integration-name> --address <dns name/Publicc IP address>:443 --key-out ./credentials/mtls-credentials.json
+    hf integrations create custom --workspace --name <custom-integration-name> --address <dns name/Publicc IP address>:443 --key-out ./credentials/mtls-credentials.json --model
+    ```
+
+    Example:
+    ```
+    hf integrations create custom --workspace --name cust-intg-99 --address 31.218.151.124:443 --key-out ./credentials/mtls-credentials.json --model
     ```
 5. Install all the dependencies: 
     ```
@@ -111,13 +116,15 @@ Example command installing CLI-1.35.0
     pip install --upgrade pip
     pip install poetry==1.3.2 --no-cache
     poetry install
-    pip install -r additional_requirements.txt --no-cache
     ```
 6. As we are going to use the port 443, make sure to convert it into an unpreviledged port using `sudo sysctl -w net.ipv4.ip_unprivileged_port_start=443`
 7. Get the Azure endpoint and API key using https://portal.azure.com/
     Go to resource
     Find Endpoint and keys
 8. Launch the integration service: `poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 <integration-generic,clu,example> "<config - key1::value1,key2::value2,..,keyN::valueN>"`
+
+Example:
+`poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::--`
 9. IF the IP address of the integration server changes, then use the following command to set the IP address of the integration server in the HF
 `hf integrations --id intg-id-here set-address -a <Public IP Address>:443`
 
@@ -130,7 +137,26 @@ docker build -t hf-integration .
 docker run -it --rm -v $(pwd):/src -p 443:443 hf-integration ./mtls-credentials.json 0.0.0.0:443 <integration-generic,clu,example> "<config - key1::value1,key2::value2,..,keyN::valueN>"
 ```
 
-**Note:**
+## Set environment variables
+```
+export HF_USERNAME="<HumanFirst Username>"
+export HF_PASSWORD="<HumanFirst Password>"
+```
+
+## Set environment variables for running CLU integration
+```
+export CLU_ENDPOINT="<CLU Endpoint>"
+export CLU_KEY="<CLU API key>"
+```
+
+**Note: In case of restarting the instance, ensure to run the follwoing command again - `sudo sysctl -w net.ipv4.ip_unprivileged_port_start=443`**
+
+## Set up custom NLU
+**Note: Currently this can be done only by any HF team**
+
+Follow the steps here - https://www.notion.so/humanfirst/Custom-NLU-d4bb84f086764e8789c57c0b77a0fdeb#e0c9cbd9a50146589a37e82cddaf9440
+
+**Notes:**
 
 **1. Merge while importing into HF tool works only for addition of intents, entities, tags, phrases. Updation and deletion of existing phrases/intent/entities in the CLU are not reflected in the merge process**
 
@@ -146,32 +172,10 @@ docker run -it --rm -v $(pwd):/src -p 443:443 hf-integration ./mtls-credentials.
 
 **7. Integration is created under assumption that entities in MS CLU workspace is both learned and list to make the entity mapping work seamlessly. Not all clients will be willing to annotate all the list entities in MS CLU workspace. An easy way is to bring the workspace into HF and use Find annotations button and annotate everything and push it back to CLU**
 
+**8. The integration would skip empty intents and takes into account only that has training phrases in them**
 
-export 4 items
-sudo 443
-give delimitr when starting the integration
-enable train on demand and infer on demand
+**9. Specifying the delimiter in GUI whie exporting doesn't do anything.**
 
-One more steps to run the CLU 
-download the zia internal cli from circle.ai and chmod 755
-then run the following commands
-zia pb --id <id here> edit
-in “otherNlus”, add a new object, set it to  { "custom": {}, "name": "what you want" } and save it, it’ll fill the id by itself
+**10. Set the delimiter right when you start the integration**
 
-run the same command again and copy paste the integration id
-
-set ondemand train as 
-
-takes into account only that has training phrases in them
-
-specifying the delimiter in GUI whie exporting doesn't do anything.
-Set the delimiter right when you start the integration
-
-
-max_concurrent_train: int = 1
-max_concurrent_models: int = 2
-
-poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::--"
-
-
-if the eval performs retry logic, then it does not delete the error agent it created in the clu
+**11. If the evaluation in HF side performs retry logic, then it does not send any request to delete the agent which was having issues it created in the clu**
