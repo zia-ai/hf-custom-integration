@@ -11,9 +11,6 @@ from .humanfirst.protobuf.external_integration.v1alpha1 import discovery_pb2_grp
 from .humanfirst.protobuf.playbook.data.config.v1alpha1 import config_pb2
 
 
-SNAPSHOT_PATH = "/home/fayaz/hf-custom-integration/hf_integration/workspaces/"
-MODEL_HANDLE_PATH = "/home/fayaz/hf-custom-integration/hf_integration/data/handlemap.json"
-
 class ModelServiceGeneric(discovery_pb2_grpc.DiscoveryServicer, models_pb2_grpc.ModelsServicer):
     """
     This is a model service that can train and run k-fold evaluation
@@ -33,11 +30,13 @@ class ModelServiceGeneric(discovery_pb2_grpc.DiscoveryServicer, models_pb2_grpc.
             phrase_tag_predicate=None,
             skip_empty_intents=False,
         )
+        self.snapshot_path = os.path.join(self.config["project_path"],"hf_integration/workspaces/")
+        self.model_handle_path = os.path.join(self.config["project_path"],"hf_integration/data/handlemap.json")
 
-        if not os.path.exists(MODEL_HANDLE_PATH):
-            with open(MODEL_HANDLE_PATH, mode="w", encoding="utf8") as f:
+        if not os.path.exists(self.model_handle_path):
+            with open(self.model_handle_path, mode="w", encoding="utf8") as f:
                 json.dump({},f,indent=2)
-        with open(MODEL_HANDLE_PATH, mode="r", encoding="utf8") as f:
+        with open(self.model_handle_path, mode="r", encoding="utf8") as f:
             self.handle_map = json.load(f)
 
 

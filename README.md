@@ -124,7 +124,7 @@ Example command installing CLI-1.35.0
 8. Launch the integration service: `poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 <integration-generic,clu,example> "<config - key1::value1,key2::value2,..,keyN::valueN>"`
 
 Example:
-`poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::--`
+`poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::--,project_path::/home/FayazJelani/hf-custom-integration"`
 9. IF the IP address of the integration server changes, then use the following command to set the IP address of the integration server in the HF
 `hf integrations --id intg-id-here set-address -a <Public IP Address>:443`
 

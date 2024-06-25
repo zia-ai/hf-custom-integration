@@ -17,7 +17,6 @@ from .humanfirst.protobuf.external_integration.v1alpha1 import workspace_pb2
 from .humanfirst.protobuf.playbook.data.config.v1alpha1 import config_pb2
 
 API_VERSION = "2023-04-01"
-PATH = "/home/fayaz/hf-custom-integration/hf_integration/workspaces/"
 
 class WorkspaceServiceCLU(WorkspaceServiceGeneric):
     """
@@ -31,6 +30,7 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         self.clu_api = clu_apis(clu_endpoint=self.config["clu_endpoint"],
                                 clu_key=self.config["clu_key"])
         self.clu_converter = clu_converter()
+        self.workspace_path = os.path.join(self.config["project_path"],"hf_integration/workspaces/")
 
     def _write_json(self,path: str, data: dict ) -> None:
         with open(path,mode="w",encoding="utf8") as f:
@@ -87,8 +87,8 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
             else:
                 raise RuntimeError("hf_file_path and clu_file_path not present in the context")
         else:
-            hf_file_path = os.path.join(PATH,"import",f"{timestamp}_hf_{request.namespace}_{project_name}.json")
-            clu_file_path = os.path.join(PATH,"import",f"{timestamp}_clu_{request.namespace}_{project_name}.json")
+            hf_file_path = os.path.join(self.workspace_path,"import",f"{timestamp}_hf_{request.namespace}_{project_name}.json")
+            clu_file_path = os.path.join(self.workspace_path,"import",f"{timestamp}_clu_{request.namespace}_{project_name}.json")
 
         # Write the HF json data to a file (in the real world, you would want to make sure there are no path injection attempts)
         # Decompress the gzip data
@@ -145,7 +145,7 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
 
         clu_project = self.clu_api.export_project(project_name=request.workspace_id)
         self._write_json(
-            path=os.path.join(PATH,"export",f"{timestamp}_clu_{request.namespace}_{request.workspace_id}.json"),
+            path=os.path.join(self.workspace_path,"export",f"{timestamp}_clu_{request.namespace}_{request.workspace_id}.json"),
             data = clu_project)
 
         hf_json = self.clu_converter.clu_to_hf_process(
@@ -153,7 +153,7 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
             delimiter=self.config["delimiter"])
 
         self._write_json(
-            path=os.path.join(PATH,"export",f"{timestamp}_hf_{request.namespace}_{request.workspace_id}.json"),
+            path=os.path.join(self.workspace_path,"export",f"{timestamp}_hf_{request.namespace}_{request.workspace_id}.json"),
             data = hf_json)
 
         # Read the HF json data from the file

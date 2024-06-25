@@ -19,8 +19,6 @@ from hf_integration.clu_apis import clu_apis
 from hf_integration.workspace_clu import WorkspaceServiceCLU
 from hf_integration.model_generic import ModelServiceGeneric
 
-SNAPSHOT_PATH = "/home/fayaz/hf-custom-integration/hf_integration/workspaces/"
-MODEL_HANDLE_PATH = "/home/fayaz/hf-custom-integration/hf_integration/data/handlemap.json"
 TRAIN_SPLIT=100
 MAX_BATCH_SIZE=1000
 
@@ -102,8 +100,8 @@ class ModelServiceCLU(ModelServiceGeneric):
             workspace_id=project_name
         )
 
-        hf_file_path = os.path.join(SNAPSHOT_PATH,"import",f"{timestamp}_hf_{request.namespace}_{project_name}.json")
-        clu_file_path = os.path.join(SNAPSHOT_PATH,"import",f"{timestamp}_clu_{request.namespace}_{project_name}.json")
+        hf_file_path = os.path.join(self.snapshot_path,"import",f"{timestamp}_hf_{request.namespace}_{project_name}.json")
+        clu_file_path = os.path.join(self.snapshot_path,"import",f"{timestamp}_clu_{request.namespace}_{project_name}.json")
         
         import_context = {
             "hf_file_path": hf_file_path,
@@ -136,7 +134,7 @@ class ModelServiceCLU(ModelServiceGeneric):
 
         }
 
-        with open(MODEL_HANDLE_PATH, mode="w", encoding="utf8") as f:
+        with open(self.model_handle_path, mode="w", encoding="utf8") as f:
             json.dump(self.handle_map,f,indent=2)
 
 
