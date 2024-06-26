@@ -1,6 +1,8 @@
 """
 Handles model training and k-fold evaluation
 """
+# standard imports
+import asyncio
 
 # custom imports
 from .humanfirst.protobuf.external_integration.v1alpha1 import models_pb2
@@ -54,7 +56,7 @@ class ModelService():
     def Classify(self, request: models_pb2.ClassifyRequest, context) -> models_pb2.ClassifyResponse:
         """Predicts utterances"""
 
-        return self.integration.Classify(request=request, context=context)
+        return asyncio.run(self.integration.Classify(request=request, context=context))
 
     def Embed(self, request: models_pb2.EmbedRequest, context) -> models_pb2.EmbedResponse:
         """

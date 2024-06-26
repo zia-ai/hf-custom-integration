@@ -7,9 +7,12 @@ import json
 import datetime
 from uuid import uuid4
 import os
+import asyncio
+from time import time, sleep
 
 # 3rd party imports
 import humanfirst
+import aiohttp
 
 # custom imports
 from .humanfirst.protobuf.external_integration.v1alpha1 import models_pb2
@@ -171,9 +174,14 @@ class ModelServiceCLU(ModelServiceGeneric):
         return models_pb2.DeleteModelResponse()
 
 
-    def Classify(self, request: models_pb2.ClassifyRequest, context) -> models_pb2.ClassifyResponse:
+    async def Classify(self, request: models_pb2.ClassifyRequest, context) -> models_pb2.ClassifyResponse:
         """Predicts utterances"""
 
+        return await self._Classify(request=request, context=context)
+
+    async def _Classify(self, request: models_pb2.ClassifyRequest, context) -> models_pb2.ClassifyResponse:
+        """Predicts utterances"""
+    
         with open(self.handle_map[request.model_id]["hf_file_path"], mode="r", encoding="utf8") as f:
             hf_json = json.load(f)
 
@@ -184,14 +192,42 @@ class ModelServiceCLU(ModelServiceGeneric):
         )
 
         predictions = []
-        for ex in request.examples:
-            print(ex)
-            data = self.clu_api.predict(
-                        project_name=self.handle_map[request.model_id]["project_name"],
-                        deployment_name=self.handle_map[request.model_id]["deployment_name"],
-                        endpoint=self.config["clu_endpoint"],
-                        text = ex.contents).json()
+        predict_results = []
+        tasks = []
 
+        semaphore = asyncio.Semaphore(1000 / 60)  # Limit to 1000 requests per minute
+
+        async def gather_with_concurrency(n, *tasks):
+            semaphore = asyncio.Semaphore(n)
+            async def sem_task(task):
+                async with semaphore:
+                    return await task
+            return await asyncio.gather(*(sem_task(task) for task in tasks))
+
+        for ex in request.examples:
+            tasks.append(
+                self.clu_api.predict(
+                    project_name=self.handle_map[request.model_id]["project_name"],
+                    deployment_name=self.handle_map[request.model_id]["deployment_name"],
+                    endpoint=self.config["clu_endpoint"],
+                    text=ex.contents
+            ))
+
+        predict_results = await asyncio.gather(*tasks)
+
+        # rate_limit = 1000 / 60  # 1000 requests per minute
+        # start_time = time()
+
+        # for i in range(0, len(tasks), int(rate_limit)):
+        #     batch = tasks[i:i + int(rate_limit)]
+        #     results = await gather_with_concurrency(int(rate_limit), *batch)
+        #     predict_results.extend(results)
+        #     elapsed_time = time() - start_time
+        #     if elapsed_time < 60:
+        #         await asyncio.sleep(60 - elapsed_time)
+        #     start_time = time()
+
+        for data in predict_results:
             # Extract intents and entities
             intents = data['result']['prediction']['intents']
             entities = data['result']['prediction']['entities']

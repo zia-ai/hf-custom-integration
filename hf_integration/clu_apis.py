@@ -6,11 +6,15 @@ python custom_integration.py
 # standard imports
 import re
 import json
+import asyncio
+from time import sleep
 
 # 3rd party imports
+import aiohttp
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.language.conversations.authoring import ConversationAuthoringClient
 from azure.core.rest import HttpRequest
+from azure.core.exceptions import HttpResponseError
 
 
 API_VERSION="2023-04-01"
@@ -112,41 +116,73 @@ class clu_apis:
                     train_split: int = 80):
         """Model Train"""
 
-        test_split = 100 - train_split
-        response =  self.client.begin_train(
-                    project_name=project_name,
-                    configuration = {
-                            "modelLabel": model_label,
-                            "trainingMode": "standard",
-                            "evaluationOptions": {
-                                "kind": "percentage",
-                                "testingSplitPercentage": test_split,
-                                "trainingSplitPercentage": train_split
-                            }
-                        },
-                        content_type = "application/json")
-        training_job_status = response.status()
-        print(training_job_status)
-        print(response.result())
-        return response
+        print("\nTRAIN MODEL API CALL\n")
+
+        while True:
+            try:
+                test_split = 100 - train_split
+                response =  self.client.begin_train(
+                            project_name=project_name,
+                            configuration = {
+                                    "modelLabel": model_label,
+                                    "trainingMode": "standard",
+                                    "evaluationOptions": {
+                                        "kind": "percentage",
+                                        "testingSplitPercentage": test_split,
+                                        "trainingSplitPercentage": train_split
+                                    }
+                                },
+                                content_type = "application/json")
+                training_job_status = response.status()
+                print(training_job_status)
+                print(response.result())
+                return response
+            except HttpResponseError as e:
+
+                if e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    sleep(retry_after)
+
 
     def list_trained_model(self,
                            project_name: str):
         """List trained model"""
 
-        response = self.client.list_trained_models(project_name=project_name)
+        print("\nLIST TRAINED MODEL API CALL\n")
 
-        return response
+        while True:
+            try:
+                response = self.client.list_trained_models(project_name=project_name)
+                return response
+            except HttpResponseError as e:
+
+                if e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    sleep(retry_after)
     
     def delete_trained_model(self,
                              project_name: str,
                              model_label: str):
         """Delete trained model"""
 
-        self.client.delete_trained_model(
-            project_name=project_name,
-            trained_model_label=model_label
-        )
+        print("\nDELETE TRAINED MODEL API CALL\n")
+
+        while True:
+            try:
+                self.client.delete_trained_model(
+                    project_name=project_name,
+                    trained_model_label=model_label
+                )
+                return
+            except HttpResponseError as e:
+
+                if e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    sleep(retry_after)
+
     
     def deploy_trained_model(self,
                 project_name: str,
@@ -154,46 +190,57 @@ class clu_apis:
                 model_label: str):
         """Deploy trained model"""
 
-        response = self.client.begin_deploy_project(
-            project_name=project_name,
-            deployment_name=deployment_name,
-            deployment={
-                        "trainedModelLabel": model_label
-                    },
-            content_type = "application/json"
-        )
-        print(response.result())
-        return response
+        print("\nDEPLOY MODEL API CALL\n")
+
+        while True:
+            try:
+                response = self.client.begin_deploy_project(
+                    project_name=project_name,
+                    deployment_name=deployment_name,
+                    deployment={
+                                "trainedModelLabel": model_label
+                            },
+                    content_type = "application/json"
+                )
+                print(response.result())
+                return response
+            except HttpResponseError as e:
+
+                if e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    sleep(retry_after)
 
     def get_trained_model(self,
                           project_name: str,
                           model_label: str):
         """Get trained model"""
 
-        response = self.client.get_trained_model(
-                    project_name=project_name,
-                    trained_model_label=model_label
-        )
+        print("\nGET TRAINED MODEL API CALL\n")
 
-        print(response)
-        return response
+        while True:
+            try:
+                response = self.client.get_trained_model(
+                            project_name=project_name,
+                            trained_model_label=model_label
+                )
+                return response
+            except HttpResponseError as e:
 
-    def delete_trained_model(self,
-                             project_name: str,
-                             model_label: str):
-        """Delete trained model"""
+                if e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    sleep(retry_after)
 
-        self.client.delete_trained_model(
-            project_name=project_name,
-            trained_model_label=model_label
-        )
 
-    def predict(self,
+    async def predict(self,
                 project_name: str,
                 deployment_name: str,
                 endpoint: str,
                 text: str):
         """Predict"""
+
+        print("\nPREDICT API CALL\n")
 
         data = {
             "kind": "Conversation",
@@ -211,24 +258,42 @@ class clu_apis:
             }
         }
 
-        response = self.client.send_request(
-            HttpRequest(
-                method="POST",
-                url=f'{endpoint}/language/:analyze-conversations?api-version={API_VERSION}',
-                data=json.dumps(data),  # Convert dictionary to JSON string
-                headers={"Content-Type": "application/json"}  # Specify the content type
-            )
+        request = HttpRequest(
+            method="POST",
+            url=f'{endpoint}/language/:analyze-conversations?api-version={API_VERSION}',
+            data=json.dumps(data),  # Convert dictionary to JSON string
+            headers={"Content-Type": "application/json"}  # Specify the content type
         )
 
-        response.raise_for_status()  # raises an error if response had error status code
-
-        return response
+        while True:
+            try:
+                loop = asyncio.get_event_loop()
+                response = await loop.run_in_executor(None, self.client.send_request, request)
+                response.raise_for_status()
+                return response.json()
+            except HttpResponseError as e:
+                print(f"Caught the ERROR {e.response.status_code}")
+                if e.response.status_code == 429:
+                    print("Caught 429")
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    await asyncio.sleep(retry_after)
+                else:
+                    raise
     
     def delete_project(self,
                        project_name: str):
         """Deletes a project"""
 
-        response = self.client.begin_delete_project(project_name=project_name)
+        print("\nDELETE PROJECT API CALL\n")
 
-        print(response.result())
-        return response
+        while True:
+            try:
+                response = self.client.begin_delete_project(project_name=project_name)
+                return response
+            except HttpResponseError as e:
+
+                if e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    sleep(retry_after)

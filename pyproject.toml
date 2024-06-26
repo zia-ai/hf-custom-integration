@@ -14,6 +14,7 @@ pandas = "==2.0.3"
 dataclasses = "==0.6"
 dataclasses_json = "==0.6.4"
 humanfirst = "==1.1.2"
+aiohttp = "==3.9.5"
 
 [tool.poetry.dev-dependencies]
 grpcio-tools = "^1.47.0"
