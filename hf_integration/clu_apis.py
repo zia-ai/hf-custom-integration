@@ -80,7 +80,6 @@ class clu_apis:
         }
         self.client.create_project(project_name=project_name,project=project)
 
-
     def import_project(self,
                        clu_json: dict,
                        project_name: str) -> None:
@@ -138,12 +137,12 @@ class clu_apis:
                 print(response.result())
                 return response
             except HttpResponseError as e:
-
                 if e.response.status_code == 429:
                     retry_after = int(e.response.headers.get("Retry-After", 1))
                     print(f"Rate limit hit. Retrying after {retry_after} seconds.")
                     sleep(retry_after)
-
+                else:
+                    raise
 
     def list_trained_model(self,
                            project_name: str):
@@ -156,12 +155,13 @@ class clu_apis:
                 response = self.client.list_trained_models(project_name=project_name)
                 return response
             except HttpResponseError as e:
-
                 if e.response.status_code == 429:
                     retry_after = int(e.response.headers.get("Retry-After", 1))
                     print(f"Rate limit hit. Retrying after {retry_after} seconds.")
                     sleep(retry_after)
-    
+                else:
+                    raise
+
     def delete_trained_model(self,
                              project_name: str,
                              model_label: str):
@@ -177,12 +177,12 @@ class clu_apis:
                 )
                 return
             except HttpResponseError as e:
-
                 if e.response.status_code == 429:
                     retry_after = int(e.response.headers.get("Retry-After", 1))
                     print(f"Rate limit hit. Retrying after {retry_after} seconds.")
                     sleep(retry_after)
-
+                else:
+                    raise
     
     def deploy_trained_model(self,
                 project_name: str,
@@ -205,11 +205,12 @@ class clu_apis:
                 print(response.result())
                 return response
             except HttpResponseError as e:
-
                 if e.response.status_code == 429:
                     retry_after = int(e.response.headers.get("Retry-After", 1))
                     print(f"Rate limit hit. Retrying after {retry_after} seconds.")
                     sleep(retry_after)
+                else:
+                    raise
 
     def get_trained_model(self,
                           project_name: str,
@@ -226,12 +227,12 @@ class clu_apis:
                 )
                 return response
             except HttpResponseError as e:
-
                 if e.response.status_code == 429:
                     retry_after = int(e.response.headers.get("Retry-After", 1))
                     print(f"Rate limit hit. Retrying after {retry_after} seconds.")
                     sleep(retry_after)
-
+                else:
+                    raise
 
     async def predict(self,
                 project_name: str,
