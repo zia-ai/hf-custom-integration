@@ -8,7 +8,7 @@ from .humanfirst.protobuf.playbook.data.config.v1alpha1 import config_pb2
 
 class WorkspaceServiceGeneric(workspace_pb2_grpc.WorkspacesServicer):
     """
-    This is a demonstration workspace service that can read and write HF json files from a local directory, and make them available for use
+    This is a workspace service that can read and write HF json files from a custom integration, and make them available for use
     via the integration.
     """
 

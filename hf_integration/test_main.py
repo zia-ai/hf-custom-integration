@@ -5,7 +5,7 @@ from .humanfirst.protobuf.external_integration.v1alpha1 import discovery_pb2, di
 from .humanfirst.protobuf.external_nlu.v1alpha1 import service_pb2_grpc, service_pb2
 from .humanfirst.protobuf.playbook.data.config.v1alpha1 import config_pb2
 
-from .model_service import ModelService
+from .model_clu import ModelService
 
 class TestIntegration(unittest.TestCase):
     def setUp(self) -> None:

@@ -5,11 +5,19 @@ python custom_integration.py
 
 # standard imports
 import re
+import json
+import asyncio
+from time import sleep
 
 # 3rd party imports
+import aiohttp
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.language.conversations.authoring import ConversationAuthoringClient
 from azure.core.rest import HttpRequest
+from azure.core.exceptions import HttpResponseError
+
+
+API_VERSION="2023-04-01"
 
 class clu_apis:
     """This class demonstrates CLU APIs"""
@@ -72,7 +80,6 @@ class clu_apis:
         }
         self.client.create_project(project_name=project_name,project=project)
 
-
     def import_project(self,
                        clu_json: dict,
                        project_name: str) -> None:
@@ -101,3 +108,193 @@ class clu_apis:
         print(f"Export is done successfully")
 
         return response.json()
+    
+    def model_train(self,
+                    project_name: str,
+                    model_label: str = "trained_model",
+                    train_split: int = 80):
+        """Model Train"""
+
+        print("\nTRAIN MODEL API CALL\n")
+
+        while True:
+            try:
+                test_split = 100 - train_split
+                response =  self.client.begin_train(
+                            project_name=project_name,
+                            configuration = {
+                                    "modelLabel": model_label,
+                                    "trainingMode": "standard",
+                                    "evaluationOptions": {
+                                        "kind": "percentage",
+                                        "testingSplitPercentage": test_split,
+                                        "trainingSplitPercentage": train_split
+                                    }
+                                },
+                                content_type = "application/json")
+                training_job_status = response.status()
+                print(training_job_status)
+                print(response.result())
+                return response
+            except HttpResponseError as e:
+                if e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    sleep(retry_after)
+                else:
+                    raise
+
+    def list_trained_model(self,
+                           project_name: str):
+        """List trained model"""
+
+        print("\nLIST TRAINED MODEL API CALL\n")
+
+        while True:
+            try:
+                response = self.client.list_trained_models(project_name=project_name)
+                return response
+            except HttpResponseError as e:
+                if e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    sleep(retry_after)
+                else:
+                    raise
+
+    def delete_trained_model(self,
+                             project_name: str,
+                             model_label: str):
+        """Delete trained model"""
+
+        print("\nDELETE TRAINED MODEL API CALL\n")
+
+        while True:
+            try:
+                self.client.delete_trained_model(
+                    project_name=project_name,
+                    trained_model_label=model_label
+                )
+                return
+            except HttpResponseError as e:
+                if e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    sleep(retry_after)
+                else:
+                    raise
+    
+    def deploy_trained_model(self,
+                project_name: str,
+                deployment_name: str,
+                model_label: str):
+        """Deploy trained model"""
+
+        print("\nDEPLOY MODEL API CALL\n")
+
+        while True:
+            try:
+                response = self.client.begin_deploy_project(
+                    project_name=project_name,
+                    deployment_name=deployment_name,
+                    deployment={
+                                "trainedModelLabel": model_label
+                            },
+                    content_type = "application/json"
+                )
+                print(response.result())
+                return response
+            except HttpResponseError as e:
+                if e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    sleep(retry_after)
+                else:
+                    raise
+
+    def get_trained_model(self,
+                          project_name: str,
+                          model_label: str):
+        """Get trained model"""
+
+        print("\nGET TRAINED MODEL API CALL\n")
+
+        while True:
+            try:
+                response = self.client.get_trained_model(
+                            project_name=project_name,
+                            trained_model_label=model_label
+                )
+                return response
+            except HttpResponseError as e:
+                if e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    sleep(retry_after)
+                else:
+                    raise
+
+    async def predict(self,
+                project_name: str,
+                deployment_name: str,
+                endpoint: str,
+                text: str):
+        """Predict"""
+
+        print("\nPREDICT API CALL\n")
+
+        data = {
+            "kind": "Conversation",
+            "analysisInput": {
+                "conversationItem": {
+                    "id": "ID1",
+                    "participantId": "ID1",
+                    "text": text
+                }
+            },
+            "parameters": {
+                "projectName": project_name,
+                "deploymentName": deployment_name,
+                "stringIndexType": "TextElement_V8"
+            }
+        }
+
+        request = HttpRequest(
+            method="POST",
+            url=f'{endpoint}/language/:analyze-conversations?api-version={API_VERSION}',
+            data=json.dumps(data),  # Convert dictionary to JSON string
+            headers={"Content-Type": "application/json"}  # Specify the content type
+        )
+
+        while True:
+            try:
+                loop = asyncio.get_event_loop()
+                response = await loop.run_in_executor(None, self.client.send_request, request)
+                response.raise_for_status()
+                return response.json()
+            except HttpResponseError as e:
+                print(f"Caught the ERROR {e.response.status_code}")
+                if e.response.status_code == 429:
+                    print("Caught 429")
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    await asyncio.sleep(retry_after)
+                else:
+                    raise
+    
+    def delete_project(self,
+                       project_name: str):
+        """Deletes a project"""
+
+        print("\nDELETE PROJECT API CALL\n")
+
+        while True:
+            try:
+                response = self.client.begin_delete_project(project_name=project_name)
+                return response
+            except HttpResponseError as e:
+
+                if e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get("Retry-After", 1))
+                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    sleep(retry_after)
