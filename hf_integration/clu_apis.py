@@ -118,7 +118,8 @@ class clu_apis:
     def model_train(self,
                     project_name: str,
                     model_label: str = "trained_model",
-                    train_split: int = 80):
+                    train_split: int = 80,
+                    training_mode: str = "standard"):
         """Model Train"""
 
         print("\nTRAIN MODEL API CALL\n")
@@ -130,7 +131,7 @@ class clu_apis:
                             project_name=project_name,
                             configuration = {
                                     "modelLabel": model_label,
-                                    "trainingMode": "standard",
+                                    "trainingMode": training_mode,
                                     "evaluationOptions": {
                                         "kind": "percentage",
                                         "testingSplitPercentage": test_split,

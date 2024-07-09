@@ -36,6 +36,8 @@ CLU_SUPPORTED_LANGUAGE_CODES = [
     "zh-hant", "zu"
 ]
 
+CLU_SUPPORTED_TRAINING_MODES = ["standard","advanced"]
+
 class ModelServiceCLU(ModelServiceGeneric):
     """
     This is a model service that can train and run k-fold evaluation
@@ -57,6 +59,12 @@ class ModelServiceCLU(ModelServiceGeneric):
 
         self.multilingual = {"True": True, "False": False}[self.config["clu_multilingual"]]
 
+        # Check for correct training mode
+        if self.config["clu_training_mode"] in CLU_SUPPORTED_TRAINING_MODES:
+            self.training_mode = self.config["clu_training_mode"]
+        else:
+            raise RuntimeError(
+                f'{self.config["clu_training_mode"]} training mode is not supported. Modes should be {CLU_SUPPORTED_TRAINING_MODES}')
 
     def _flip_dict(self, input_dict, delimiter):
         # Ensure that all values in the original dictionary are unique
@@ -138,7 +146,8 @@ class ModelServiceCLU(ModelServiceGeneric):
 
         self.clu_api.model_train(project_name=project_name,
                                  model_label=model_label,
-                                 train_split=train_split)
+                                 train_split=train_split,
+                                 training_mode=self.training_mode)
         
         response = self.clu_api.deploy_trained_model(
                     project_name = project_name,
