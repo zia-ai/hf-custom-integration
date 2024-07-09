@@ -18,6 +18,18 @@ from .humanfirst.protobuf.playbook.data.config.v1alpha1 import config_pb2
 
 API_VERSION = "2023-04-01"
 
+CLU_SUPPORTED_LANGUAGE_CODES = [
+    "af", "am", "ar", "as", "az", "be", "bg", "bn", "br", "bs", "ca", "cs", 
+    "cy", "da", "de", "el", "en-us", "en-gb", "eo", "es", "et", "eu", "fa", 
+    "fi", "fr", "fy", "ga", "gd", "gl", "gu", "ha", "he", "hi", "hr", "hu", 
+    "hy", "id", "it", "ja", "jv", "ka", "kk", "km", "kn", "ko", "ku", "ky", 
+    "la", "lo", "lt", "lv", "mg", "mk", "ml", "mn", "mr", "ms", "my", "ne", 
+    "nl", "nb", "or", "pa", "pl", "ps", "pt-br", "pt-pt", "ro", "ru", "sa", 
+    "sd", "si", "sk", "sl", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", 
+    "th", "tl", "tr", "ug", "uk", "ur", "uz", "vi", "xh", "yi", "zh-hans", 
+    "zh-hant", "zu"
+]
+
 class WorkspaceServiceCLU(WorkspaceServiceGeneric):
     """
     This is a workspace service for Microsoft CLU
@@ -31,6 +43,14 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
                                 clu_key=self.config["clu_key"])
         self.clu_converter = clu_converter()
         self.workspace_path = os.path.join(self.config["project_path"],"hf_integration/workspaces/")
+
+        # Check for language code support
+        if self.config["clu_language"] in CLU_SUPPORTED_LANGUAGE_CODES:
+            self.language = self.config["clu_language"]
+        else:
+            raise RuntimeError(f'{self.config["clu_language"]} is not supported by CLU')
+        
+        self.multilingual = self.multilingual = {"True": True, "False": False}[self.config["clu_multilingual"]]
 
     def _write_json(self,path: str, data: dict ) -> None:
         with open(path,mode="w",encoding="utf8") as f:
@@ -58,7 +78,9 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         Create a new workspace
         """
         self.clu_api.clu_create_project(project_name=request.workspace.name,
-                                        des = request.workspace.description)
+                                        des = request.workspace.description,
+                                        language=self.language,
+                                        multilingual=self.multilingual)
 
         return workspace_pb2.Workspace(id=request.workspace.name, name=request.workspace.name)
 
@@ -124,7 +146,8 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         clu_json = self.clu_converter.hf_to_clu_process(
             hf_json=hf_json,
             clu_json=clu_json,
-            delimiter=self.config["delimiter"])
+            delimiter=self.config["delimiter"],
+            language=self.language)
 
         self._write_json(
             path = clu_file_path,
@@ -150,7 +173,8 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
 
         hf_json = self.clu_converter.clu_to_hf_process(
             clu_json=clu_project,
-            delimiter=self.config["delimiter"])
+            delimiter=self.config["delimiter"],
+            language=self.language)
 
         self._write_json(
             path=os.path.join(self.workspace_path,"export",f"{timestamp}_hf_{request.namespace}_{request.workspace_id}.json"),

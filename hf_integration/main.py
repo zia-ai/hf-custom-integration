@@ -20,6 +20,10 @@ from hf_integration.workspace_service import WorkspaceService
 from hf_integration.workspace_clu import WorkspaceServiceCLU
 from hf_integration.workspace_example import WorkspaceServiceExample
 
+
+MAX_MESSAGE_LENGTH = 8000000
+
+
 class DiscoveryService(discovery_pb2_grpc.DiscoveryServicer):
     def __init__(self) -> None:
         super().__init__()
@@ -35,7 +39,10 @@ class DiscoveryService(discovery_pb2_grpc.DiscoveryServicer):
 def main(args):
     import grpc, logging, time
     from concurrent import futures
-    grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=100))
+    grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=100), options = [
+        ('grpc.max_send_message_length', MAX_MESSAGE_LENGTH),
+        ('grpc.max_receive_message_length', MAX_MESSAGE_LENGTH)
+    ])
 
     discovery_pb2_grpc.add_DiscoveryServicer_to_server(DiscoveryService(), grpc_server)
 

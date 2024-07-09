@@ -57,7 +57,13 @@ class clu_apis:
 
     def clu_create_project(self,
                            project_name: str,
-                           des: str) -> None:
+                           des: str,
+                           language: str = "en-us",
+                           confidence_threshold: float = 0.5,
+                           normalize_casing: bool = False,
+                           project_kind: str = "Conversation",
+                           multilingual: bool = False
+                           ) -> None:
         """Create a new project
         Supports English language en-us
         Project kind supported is conversation
@@ -69,14 +75,14 @@ class clu_apis:
         project_name = self._remove_non_alphanumeric(input_string=project_name)
         project = {
             "projectName": project_name,
-            "language": "en-us",
+            "language": language,
             "settings": {
-                "confidenceThreshold": 0.5,
-                "normalizeCasing": False
+                "confidenceThreshold": confidence_threshold,
+                "normalizeCasing": normalize_casing
             },
-            "projectKind": "Conversation",
+            "projectKind": project_kind,
             "description": des,
-            "multilingual": False
+            "multilingual": multilingual
         }
         self.client.create_project(project_name=project_name,project=project)
 

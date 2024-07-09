@@ -21,6 +21,24 @@ import humanfirst
 TRAIN="Train"
 TEST="Test"
 
+
+def utf8span(s: str, pos: int):
+    """
+    Compute the utf8 character index of the [pos] position within the string s
+    """
+
+    return len(s[:pos].encode('utf-8'))
+
+
+def reverse_utf8span(s: str, byte_index: int) -> int:
+    """
+    Compute the string character index of the [byte_index] position within the UTF-8 encoded string s
+    """
+    encoded = s.encode('utf-8')
+    truncated_encoded = encoded[:byte_index]
+    return len(truncated_encoded.decode('utf-8', errors='ignore'))
+
+
 class clu_to_hf_converter:
     def clu_to_hf_process(
             self,
@@ -105,9 +123,11 @@ class clu_to_hf_converter:
                 if clu_json["assets"]["utterances"][i]["entities"] != []:
                     hf_json["examples"][i]["entities"] = []
                     for clu_annotation in clu_json["assets"]["utterances"][i]["entities"]:
-                        start_index = clu_annotation["offset"]
-                        end_index = clu_annotation["offset"] + clu_annotation["length"]
-                        synonym = clu_json["assets"]["utterances"][i]["text"][start_index:end_index]
+                        start_char_index = clu_annotation["offset"]
+                        end_char_index = clu_annotation["offset"] + clu_annotation["length"]
+                        start_byte_index = utf8span(clu_json["assets"]["utterances"][i]["text"], start_char_index)
+                        end_byte_index = utf8span(clu_json["assets"]["utterances"][i]["text"], end_char_index)
+                        synonym = clu_json["assets"]["utterances"][i]["text"][start_char_index:end_char_index]
                         for entity_key,entity_value in simple_entity[clu_annotation["category"]].items():
                             for j,_ in enumerate(entity_value):
                                 entity_value[j] = entity_value[j].lower()
@@ -121,8 +141,8 @@ class clu_to_hf_converter:
                             "name": clu_annotation["category"],
                             "text": synonym,
                             "span": {
-                                "from_character": start_index,
-                                "to_character": end_index
+                                "from_character": start_byte_index,
+                                "to_character": end_byte_index
                             },
                             "value": hf_entity_key
                         }
@@ -208,8 +228,8 @@ class hf_to_clu_converter:
         # TODO: note potential clashes with utf16 and utf8 in future depending on PVA
 
         # get a HFWorkspace object to get fully qualified intent names
-        print("delimiter blah blah")
-        print(delimiter)
+        # print("delimiter blah blah")
+        print(f"Delimiter {delimiter}")
         hf_workspace = humanfirst.objects.HFWorkspace.from_json(hf_json,delimiter)
 
         # get the tag for Test dataset
@@ -242,13 +262,13 @@ class hf_to_clu_converter:
         for clu_utterance in clu_json["assets"]["utterances"]:
             clu_intent_names.add(clu_utterance["intent"])
         
-        print(clu_intent_names)
+        # print(clu_intent_names)
         # set to list
         clu_intents = []
         for intent_name in clu_intent_names:
             clu_intents.append(self.hf_to_clu_intent_mapper(intent_name))
         
-        print(clu_intents)
+        # print(clu_intents)
         #
         clu_json["assets"]["intents"] = clu_intents
 
@@ -323,10 +343,7 @@ class hf_to_clu_converter:
                         hf_workspace: humanfirst.objects.HFWorkspace,
                         test_tag_id: str,
                         skip: bool) -> dict:
-        """Returns a clu_utterance as a dict with the language set to that passed
-        and the fully qualified intent name of the id in humanfirst
-        if the utterance is tagged as Test in HF this will be
-        put in test data set"""
+        """Maps CLU utterance to HF utterance format"""
 
         # Check fit the data is labelled Train/Test - all with no labels will be Train
         dataset = TRAIN
@@ -343,8 +360,8 @@ class hf_to_clu_converter:
                 warnings.warn(f'Found utterance with tags not list or Na: {row}')
 
         intent_name = hf_workspace.get_fully_qualified_intent_name(row["intents"][0]["intent_id"])
-        print(row["intents"][0]["intent_id"])
-        print(intent_name)
+        # print(row["intents"][0]["intent_id"])
+        # print(intent_name)
         if len(intent_name) > 50:
             if not skip:
                 raise RuntimeError(f'intent name length of {len(intent_name)} exceeds 50 chars.  {intent_name}')
@@ -353,10 +370,12 @@ class hf_to_clu_converter:
         if "entities" in row:
             if row["entities"] != [] and isinstance(row["entities"], list):
                 for hf_annotation in row["entities"]:
+                    start_char_index = reverse_utf8span(row["text"], hf_annotation["span"]["from_character"])
+                    end_char_index = reverse_utf8span(row["text"], hf_annotation["span"]["to_character"])
                     clu_annotation = {
                             "category": hf_annotation["name"],
-                            "offset": hf_annotation["span"]["from_character"],
-                            "length": hf_annotation["span"]["to_character"] - hf_annotation["span"]["from_character"]
+                            "offset": start_char_index,
+                            "length": end_char_index - start_char_index
                         }
 
                     clu_entities.append(clu_annotation)

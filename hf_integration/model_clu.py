@@ -24,6 +24,17 @@ from hf_integration.model_generic import ModelServiceGeneric
 
 TRAIN_SPLIT=100
 MAX_BATCH_SIZE=1000
+CLU_SUPPORTED_LANGUAGE_CODES = [
+    "af", "am", "ar", "as", "az", "be", "bg", "bn", "br", "bs", "ca", "cs", 
+    "cy", "da", "de", "el", "en-us", "en-gb", "eo", "es", "et", "eu", "fa", 
+    "fi", "fr", "fy", "ga", "gd", "gl", "gu", "ha", "he", "hi", "hr", "hu", 
+    "hy", "id", "it", "ja", "jv", "ka", "kk", "km", "kn", "ko", "ku", "ky", 
+    "la", "lo", "lt", "lv", "mg", "mk", "ml", "mn", "mr", "ms", "my", "ne", 
+    "nl", "nb", "or", "pa", "pl", "ps", "pt-br", "pt-pt", "ro", "ru", "sa", 
+    "sd", "si", "sk", "sl", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", 
+    "th", "tl", "tr", "ug", "uk", "ur", "uz", "vi", "xh", "yi", "zh-hans", 
+    "zh-hant", "zu"
+]
 
 class ModelServiceCLU(ModelServiceGeneric):
     """
@@ -37,6 +48,14 @@ class ModelServiceCLU(ModelServiceGeneric):
         self.clu_api = clu_apis(clu_endpoint=self.config["clu_endpoint"],
                                 clu_key=self.config["clu_key"])
         self.workspace = WorkspaceServiceCLU(config=config)
+
+        # Check for language code support
+        if self.config["clu_language"] in CLU_SUPPORTED_LANGUAGE_CODES:
+            self.language = self.config["clu_language"]
+        else:
+            raise RuntimeError(f'{self.config["clu_language"]} is not supported by CLU')
+
+        self.multilingual = {"True": True, "False": False}[self.config["clu_multilingual"]]
 
 
     def _flip_dict(self, input_dict, delimiter):
@@ -92,7 +111,9 @@ class ModelServiceCLU(ModelServiceGeneric):
 
         # create a new project
         self.clu_api.clu_create_project(project_name=project_name,
-                            des = "Train and eval")
+                                        des = "Train and eval",
+                                        language=self.language,
+                                        multilingual=self.multilingual)
         print("\nNew project created")
 
         # Create import request object
