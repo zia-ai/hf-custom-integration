@@ -121,11 +121,23 @@ Example command installing CLI-1.35.0
 7. Get the Azure endpoint and API key using https://portal.azure.com/
     Go to resource
     Find Endpoint and keys
-8. Launch the integration service: `poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 <integration-generic,clu,example> "<config - key1::value1,key2::value2,..,keyN::valueN>"`
+    
+8. Set HumanFirst environment variables
+    ```
+    export HF_USERNAME="<HumanFirst Username>"
+    export HF_PASSWORD="<HumanFirst Password>"
+    ```
+9. Set environment variables for running CLU integration
+    ```
+    export CLU_ENDPOINT="<CLU Endpoint>"
+    export CLU_KEY="<CLU API key>"
+    ```
+**Note: In case of restarting the instance, ensure to run the follwoing command again - `sudo sysctl -w net.ipv4.ip_unprivileged_port_start=443`**
+10. Launch the integration service: `poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 <integration-generic,clu,example> "<config - key1::value1,key2::value2,..,keyN::valueN>"`
 
 Example:
 `poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::--,project_path::/home/Mohammed/hf-custom-integration,clu_language::en-us,clu_multilingual::True,clu_training_mode::advanced"`
-9. IF the IP address of the integration server changes, then use the following command to set the IP address of the integration server in the HF
+11. IF the IP address of the integration server changes, then use the following command to set the IP address of the integration server in the HF
 `hf integrations --id intg-id-here set-address -a <Public IP Address>:443`
 
 ## Docker
@@ -136,20 +148,6 @@ You can also build a docker container for the integration and launch it directly
 docker build -t hf-integration .
 docker run -it --rm -v $(pwd):/src -p 443:443 hf-integration ./mtls-credentials.json 0.0.0.0:443 <integration-generic,clu,example> "<config - key1::value1,key2::value2,..,keyN::valueN>"
 ```
-
-## Set environment variables
-```
-export HF_USERNAME="<HumanFirst Username>"
-export HF_PASSWORD="<HumanFirst Password>"
-```
-
-## Set environment variables for running CLU integration
-```
-export CLU_ENDPOINT="<CLU Endpoint>"
-export CLU_KEY="<CLU API key>"
-```
-
-**Note: In case of restarting the instance, ensure to run the follwoing command again - `sudo sysctl -w net.ipv4.ip_unprivileged_port_start=443`**
 
 ## Set up custom NLU
 **Note: Currently this can be done only by any HF team**
