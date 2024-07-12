@@ -117,7 +117,10 @@ class clu_to_hf_converter:
             if not known_entity:
                 warnings.warn(f'Unknown entity type keys are: {clu_entity_object.keys()}')
                 continue
-
+        
+        error_annotated_text = []
+        error_full_text = []
+        error_full_intent_name = []
         for i,_ in enumerate(clu_json["assets"]["utterances"]):
             if "entities" in clu_json["assets"]["utterances"][i]:
                 if clu_json["assets"]["utterances"][i]["entities"] != []:
@@ -128,14 +131,23 @@ class clu_to_hf_converter:
                         start_byte_index = utf8span(clu_json["assets"]["utterances"][i]["text"], start_char_index)
                         end_byte_index = utf8span(clu_json["assets"]["utterances"][i]["text"], end_char_index)
                         synonym = clu_json["assets"]["utterances"][i]["text"][start_char_index:end_char_index]
-                        for entity_key,entity_value in simple_entity[clu_annotation["category"]].items():
-                            for j,_ in enumerate(entity_value):
-                                entity_value[j] = entity_value[j].lower()
-                            if synonym.lower() in entity_value:
-                                hf_entity_key = entity_key
+                        utterance_text = clu_json["assets"]["utterances"][i]["text"]
+                        intent_name = clu_json["assets"]["utterances"][i]["intent"]
+                        for entity_key_value,entity_synonyms in simple_entity[clu_annotation["category"]].items():
+                            # HF tool allows case insensitive match
+                            if synonym.lower() == entity_key_value.lower():
+                                hf_entity_key = entity_key_value
+                                break
+                            for j,_ in enumerate(entity_synonyms):
+                                entity_synonyms[j] = entity_synonyms[j].lower()
+                            if synonym.lower() in entity_synonyms:
+                                hf_entity_key = entity_key_value
                                 break
                         else:
-                            raise RuntimeError(f"'{synonym}' is not present in entity: '{simple_entity[clu_annotation['category']]}'")
+                            error_annotated_text.append(synonym)
+                            error_full_text.append(utterance_text)
+                            error_full_intent_name.append(intent_name)
+                            # raise RuntimeError(f"'{synonym}' is not present in entity: '{simple_entity[clu_annotation['category']]}'")
 
                         hf_annotation = {
                             "name": clu_annotation["category"],
@@ -148,7 +160,8 @@ class clu_to_hf_converter:
                         }
 
                         hf_json["examples"][i]["entities"].append(hf_annotation)
-
+        if len(error_annotated_text) != 0:
+            raise RuntimeError(f"Error annotatations: {error_annotated_text}\nIn corresponding utterance list : {error_full_text}\nIn corresponding intent list {error_full_intent_name}\nDon't exists in any entities")
         return hf_json
 
 
