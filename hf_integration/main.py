@@ -2,12 +2,17 @@
 Main script
 
 Config provided as command line args, the keys and the values are separated by :: 
-and the key-value pairs are sepeated by ,
+and the key-value pairs are separated by ,
 """
 
 # standard imports
 import json
 import sys
+import logging
+import os
+from datetime import datetime
+import grpc
+import time
 
 # custom imports
 from .humanfirst.protobuf.external_integration.v1alpha1 import discovery_pb2, discovery_pb2_grpc, models_pb2_grpc, workspace_pb2_grpc
@@ -20,9 +25,38 @@ from hf_integration.workspace_service import WorkspaceService
 from hf_integration.workspace_clu import WorkspaceServiceCLU
 from hf_integration.workspace_example import WorkspaceServiceExample
 
-
 MAX_MESSAGE_LENGTH = 8000000
 
+def setup_logging(log_file_path):
+    # Remove all existing handlers
+    root_logger = logging.getLogger()
+    if root_logger.hasHandlers():
+        root_logger.handlers.clear()
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file_path, mode='a'),
+            # Remove StreamHandler to prevent double logging
+            # logging.StreamHandler()  # You can comment this out if you don't want logs in the terminal
+        ]
+    )
+
+    # Configure grpc logging
+    grpc_logger = logging.getLogger('grpc')
+    grpc_logger.setLevel(logging.DEBUG)
+    file_handler = logging.FileHandler(log_file_path, mode='a')
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    grpc_logger.addHandler(file_handler)
+
+    return log_file_path
+
+def redirect_output_to_log(log_file_path):
+    # Redirect stdout and stderr to the log file
+    log_file = open(log_file_path, 'a')
+    os.dup2(log_file.fileno(), sys.stdout.fileno())
+    os.dup2(log_file.fileno(), sys.stderr.fileno())
 
 class DiscoveryService(discovery_pb2_grpc.DiscoveryServicer):
     def __init__(self) -> None:
@@ -35,11 +69,11 @@ class DiscoveryService(discovery_pb2_grpc.DiscoveryServicer):
             supports_models=True,
             supports_workspaces=True,
         )
-    
+
 def main(args):
-    import grpc, logging, time
     from concurrent import futures
-    grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=100), options = [
+
+    grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=100), options=[
         ('grpc.max_send_message_length', MAX_MESSAGE_LENGTH),
         ('grpc.max_receive_message_length', MAX_MESSAGE_LENGTH)
     ])
@@ -57,8 +91,20 @@ def main(args):
     for pair in pairs:
         key, value = pair.split('::')
         result_dict[key] = value
-    
+
     config = result_dict
+
+    # Configure the root logger
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file_path = os.path.join(config["project_path"],"hf_integration","logs",f"{timestamp}.log")
+    setup_logging(log_file_path)
+
+    # Redirect stdout and stderr
+    redirect_output_to_log(log_file_path)
+
+    # Create a logger object
+    logger = logging.getLogger(__name__)
+
     if integration == "generic":
         workspace_intg = WorkspaceServiceGeneric(config=config)
         model_intg = ModelServiceGeneric(config=config)
@@ -68,11 +114,10 @@ def main(args):
     # elif integration == "example":
     #     workspace_intg = WorkspaceServiceExample(config=config)
     else:
-        raise RuntimeError("Unrecognosed integration")
+        raise RuntimeError("Unrecognized integration")
 
     workspace_pb2_grpc.add_WorkspacesServicer_to_server(WorkspaceService(integration=workspace_intg), grpc_server)
     models_pb2_grpc.add_ModelsServicer_to_server(ModelService(integration=model_intg), grpc_server)
-
 
     # Load the mtls keypair
     keypair_path = args[0]
@@ -83,23 +128,21 @@ def main(args):
         client_cert = bytes(keypair['remote_certificate'], encoding='utf8')
 
     credentials = grpc.ssl_server_credentials(
-            [(server_key, server_certificate)],
-            root_certificates=client_cert,
-            require_client_auth=True)
-    
+        [(server_key, server_certificate)],
+        root_certificates=client_cert,
+        require_client_auth=True)
 
     addr = args[1]
     grpc_server.add_secure_port(addr, credentials)
     grpc_server.start()
 
-    logging.error("grpc server ready on %s" % addr)
+    logger.info("grpc server ready on %s", addr)
 
     try:
         while True:
             time.sleep(24 * 3600)
     except KeyboardInterrupt:
         grpc_server.stop(0)
-
 
 if __name__ == '__main__':
     main(sys.argv[1:])
