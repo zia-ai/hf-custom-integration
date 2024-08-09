@@ -134,10 +134,15 @@ Example command installing CLI-1.35.0
     ```
 **Note: In case of restarting the instance, ensure to run the follwoing command again - `sudo sysctl -w net.ipv4.ip_unprivileged_port_start=443`**
 
-10. Launch the integration service: `poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 <integration-generic,clu,example> "<config - key1::value1,key2::value2,..,keyN::valueN>"`
+10. Launch the integration service:
+    ```
+    poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 <integration-generic,clu,example> "<config - key1::value1,key2::value2,..,keyN::valueN>"
+    ```
 
     Example:
-    `poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::-,project_path::/home/FayazJelani/hf-custom-integration,clu_language::ja,clu_multilingual::True,clu_training_mode::advanced"`
+    ```
+    poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::-,project_path::/home/FayazJelani/hf-custom-integration,clu_language::ja,clu_multilingual::True,clu_training_mode::advanced,log_level::debug"
+    ```
 
 11. IF the IP address of the integration server changes, then use the following command to set the IP address of the integration server in the HF
 `hf integrations --id intg-id-here set-address -a <Public IP Address>:443`

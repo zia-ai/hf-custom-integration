@@ -7,6 +7,7 @@ and the key-value pairs are separated by ,
 
 # standard imports
 import json
+from logging.handlers import RotatingFileHandler
 import sys
 import logging
 import os
@@ -27,17 +28,24 @@ from hf_integration.workspace_example import WorkspaceServiceExample
 
 MAX_MESSAGE_LENGTH = 8000000
 
-def setup_logging(log_file_path):
+def setup_logging(log_file_path: str, log_level: logging):
     # Remove all existing handlers
     root_logger = logging.getLogger()
     if root_logger.hasHandlers():
         root_logger.handlers.clear()
 
+    # When the log file size exceeds 1GB. Automatically a new file is created and old one is saved
+    # Can go to upto 4 additional log files
+    # If the number of log files exceed the backup count + 1, then automatically the oldest log file is deleted
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=log_level,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler(log_file_path, mode='a'),
+            RotatingFileHandler(filename=log_file_path,
+                                mode='a',
+                                maxBytes=1073741824, # 1GB per log file limit
+                                backupCount=4,
+                                encoding="utf8"),
             # Remove StreamHandler to prevent double logging
             # logging.StreamHandler()  # You can comment this out if you don't want logs in the terminal
         ]
@@ -45,8 +53,12 @@ def setup_logging(log_file_path):
 
     # Configure grpc logging
     grpc_logger = logging.getLogger('grpc')
-    grpc_logger.setLevel(logging.DEBUG)
-    file_handler = logging.FileHandler(log_file_path, mode='a')
+    grpc_logger.setLevel(log_level)
+    file_handler = RotatingFileHandler(filename=log_file_path,
+                                       mode='a',
+                                       maxBytes=1073741824, # 1GB per log file limit
+                                       backupCount=4,
+                                       encoding="utf8")
     file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     grpc_logger.addHandler(file_handler)
 
@@ -95,9 +107,24 @@ def main(args):
     config = result_dict
 
     # Configure the root logger
+
+    # set log level
+    if config["log_level"] == "debug":
+        config["log_level"] = logging.DEBUG
+    elif config["log_level"] == "info":
+        config["log_level"] = logging.INFO
+    elif config["log_level"] == "warning":
+        config["log_level"] = logging.WARNING
+    elif config["log_level"] == "error":
+        config["log_level"] = logging.ERROR
+    elif config["log_level"] == "critical":
+        config["log_level"] = logging.CRITICAL
+    else:
+        raise RuntimeError("Incorrect log level. Should be one of debug, info, warning, error, critical")
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file_path = os.path.join(config["project_path"],"hf_integration","logs",f"{timestamp}.log")
-    setup_logging(log_file_path)
+    setup_logging(log_file_path, config["log_level"])
 
     # Redirect stdout and stderr
     redirect_output_to_log(log_file_path)
