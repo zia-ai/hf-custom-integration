@@ -10,11 +10,14 @@ numpy = "^1.22.3"
 bidict = "^0.22.0"
 grpcio = "^1.53.0"
 azure-ai-language-conversations = "==1.1.0"
+boto3 = "^1.35"
 pandas = "==2.0.3"
 dataclasses = "==0.6"
 dataclasses_json = "==0.6.4"
-humanfirst = "==1.1.2"
+humanfirst = ">=1.1.4"
 aiohttp = "==3.9.5"
+pytest = ">=8.3.3"
+urllib3 = "<2"
 
 [tool.poetry.dev-dependencies]
 grpcio-tools = "^1.47.0"
@@ -23,3 +26,8 @@ mypy-protobuf = "^3.2.0"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  ".","venv"
+]

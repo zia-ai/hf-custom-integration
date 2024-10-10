@@ -1,11 +1,14 @@
+# THIS TEST IS BROKEN and renamed tst
+# This was from the original integration example and needs to be replaced.
+
 # Work In Progress
 import unittest, os
 
-from .humanfirst.protobuf.external_integration.v1alpha1 import discovery_pb2, discovery_pb2_grpc, models_pb2, models_pb2_grpc
-from .humanfirst.protobuf.external_nlu.v1alpha1 import service_pb2_grpc, service_pb2
-from .humanfirst.protobuf.playbook.data.config.v1alpha1 import config_pb2
+from humanfirst.protobuf.external_integration.v1alpha1 import discovery_pb2, discovery_pb2_grpc, models_pb2, models_pb2_grpc
+from humanfirst.protobuf.external_nlu.v1alpha1 import service_pb2_grpc, service_pb2
+from humanfirst.protobuf.playbook.data.config.v1alpha1 import config_pb2
 
-from .model_clu import ModelService
+from model_clu import ModelService
 
 class TestIntegration(unittest.TestCase):
     def setUp(self) -> None:
