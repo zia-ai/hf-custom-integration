@@ -184,3 +184,19 @@ Follow the steps here - https://www.notion.so/humanfirst/Custom-NLU-d4bb84f08676
 **10. Set the delimiter right when you start the integration**
 
 **11. If the evaluation in HF side performs retry logic, then it does not send any request to delete the agent which was having issues it created in the clu**
+
+**12. Before running NLU training, ensure to perform bi-directional sync.**
+
+**13. Remove train tag while importing from CLU**
+
+## Handling cancellations
+### Cancellation Callback:
+* Added on_cancel() which gets called if the client cancels the request. It sets the self.is_cancelled flag.
+* Registered this callback with context.add_callback(on_cancel).
+
+### Cancellation Checks:
+* Periodically checked self.is_cancelled.is_set() after every major step (project creation, workspace import, training).
+* Called context.abort(grpc.StatusCode.CANCELLED, "Training cancelled by client.") if cancellation is detected. This is how the server informs the client that the gRPC operation has been cancelled, and it stops further processing on the server side.
+
+### Threading Event:
+* Used threading.Event() to handle cancellation and ensure thread-safe checking of the cancellation status.
