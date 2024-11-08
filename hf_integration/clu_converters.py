@@ -10,6 +10,9 @@ Convert CLU JSON into HF and  HF to CLU JSON
 import datetime
 import warnings
 import copy
+import logging.config
+import os
+from datetime import datetime
 
 # 3rd party imports
 import pandas
@@ -21,6 +24,85 @@ import humanfirst
 TRAIN="Train"
 TEST="Test"
 
+# locate where we are
+here = os.path.abspath(os.path.dirname(__file__))
+
+path_to_log_config_file = os.path.join(here,'config','logging.conf')
+
+# Get the current date and time
+current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+# Create the log file name with the current datetime
+log_filename = f"log_{current_datetime}.log"
+
+# Decide whether to save logs in a file or not
+log_file_enable = os.environ.get("CI_LOG_FILE_ENABLE")
+
+log_handler_list = []
+
+if log_file_enable == "TRUE":
+    log_handler_list.append('rotatingFileHandler')
+elif log_file_enable == "FALSE" or log_file_enable is None:
+    pass
+else:
+    raise RuntimeError("Incorrect CI_LOG_FILE_ENABLE value. Should be - 'TRUE', 'FALSE' or ''")
+
+log_defaults = {}
+
+# get log directory if going to save the logs
+if log_file_enable == "TRUE":
+    log_dir = os.path.join(here,"logs")
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    path_to_save_log = os.path.join(log_dir,log_filename)
+else:
+    # avoid logging to a file
+    path_to_save_log = '/dev/null'  # On Linux/MacOS, this discards logs (Windows: NUL) pylint:disable=invalid-name
+log_defaults['CI_LOG_FILE_PATH'] = path_to_save_log
+
+
+# Decide whether to print the logs in the console or not
+log_console_enable = os.environ.get("CI_LOG_CONSOLE_ENABLE")
+
+if log_console_enable == "TRUE":
+    log_handler_list.append('consoleHandler')
+elif log_console_enable == "FALSE" or log_console_enable is None:
+    pass
+else:
+    raise RuntimeError("Incorrect CI_LOG_CONSOLE_ENABLE value. Should be - 'TRUE', 'FALSE' or ''")
+
+
+if log_console_enable == "TRUE" and log_file_enable == "TRUE":
+    raise RuntimeError("Custom integration supports either console logging or file logging but not both")
+    # this is because of unable to override SSL errors logging configurations and able to only have them in either console or log file 
+
+
+if log_handler_list:
+    log_defaults['CI_LOG_HANDLER'] = ",".join(log_handler_list)
+else:
+    log_defaults['CI_LOG_HANDLER'] = "nullHandler"
+
+
+# Set log levels
+log_level = os.environ.get("CI_LOG_LEVEL")
+if log_level is not None:
+    # set log level
+    if log_level not in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+        raise RuntimeError("Incorrect log level. Should be - 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'")
+
+    log_defaults['CI_LOG_LEVEL'] = log_level
+else:
+    log_defaults['CI_LOG_LEVEL'] = 'INFO' # default level
+
+
+# Load logging configuration
+logging.config.fileConfig(
+    path_to_log_config_file,
+    defaults=log_defaults
+)
+
+# create logger
+logger = logging.getLogger('custom_integration.clu_converters')
 
 def utf8span(s: str, pos: int):
     """
@@ -82,7 +164,7 @@ class clu_to_hf_converter:
         df_clu_intents["category"].apply(self.clu_to_hf_intent_mapper,args=[hf_workspace,delimiter])
 
         # make utterances
-        created_at = datetime.datetime.now().isoformat()
+        created_at = datetime.now().isoformat()
         df_clu_utterances.apply(self.clu_to_hf_utterance_mapper,axis=1,args=[hf_workspace, created_at, delimiter])
 
         # go to JSON to do entities as not in HFWorkspace
@@ -169,7 +251,7 @@ class clu_to_hf_converter:
         """Builds a HF entity object for any clu lists"""
 
         # hf_entity using name to generate hash id
-        isonow = datetime.datetime.now().isoformat()
+        isonow = datetime.now().isoformat()
         hf_entity =  {
             "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
             "name": clu_entity_object["category"],
@@ -211,7 +293,7 @@ class clu_to_hf_converter:
     def clu_to_hf_utterance_mapper(self, 
                                    row: pandas.Series,
                                    hf_workspace: humanfirst.objects.HFWorkspace,
-                                   created_at: datetime.datetime,
+                                   created_at: datetime,
                                    delimiter: str) -> None:
         """Builds HF example"""
         fully_qualified_intent_name = str(row["intent"])

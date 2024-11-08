@@ -9,7 +9,9 @@ and the key-value pairs are separated by ,
 import json
 from logging.handlers import RotatingFileHandler
 import sys
+from configparser import ConfigParser
 import logging
+import logging.config
 import os
 from datetime import datetime
 import grpc
@@ -28,47 +30,108 @@ from hf_integration.workspace_example import WorkspaceServiceExample
 
 MAX_MESSAGE_LENGTH = 8000000
 
-def setup_logging(log_file_path: str, log_level: logging):
+def cleanup_logging_handlers():
     # Remove all existing handlers
     root_logger = logging.getLogger()
     if root_logger.hasHandlers():
         root_logger.handlers.clear()
 
-    # When the log file size exceeds 1GB. Automatically a new file is created and old one is saved
-    # Can go to upto 4 additional log files
-    # If the number of log files exceed the backup count + 1, then automatically the oldest log file is deleted
-    logging.basicConfig(
-        level=log_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            RotatingFileHandler(filename=log_file_path,
-                                mode='a',
-                                maxBytes=1073741824, # 1GB per log file limit
-                                backupCount=4,
-                                encoding="utf8"),
-            # Remove StreamHandler to prevent double logging
-            # logging.StreamHandler()  # You can comment this out if you don't want logs in the terminal
-        ]
-    )
-
-    # Configure grpc logging
-    grpc_logger = logging.getLogger('grpc')
-    grpc_logger.setLevel(log_level)
-    file_handler = RotatingFileHandler(filename=log_file_path,
-                                       mode='a',
-                                       maxBytes=1073741824, # 1GB per log file limit
-                                       backupCount=4,
-                                       encoding="utf8")
-    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    grpc_logger.addHandler(file_handler)
-
-    return log_file_path
 
 def redirect_output_to_log(log_file_path):
     # Redirect stdout and stderr to the log file
     log_file = open(log_file_path, 'a')
-    os.dup2(log_file.fileno(), sys.stdout.fileno())
+    # os.dup2(log_file.fileno(), sys.stdout.fileno()) # This statement would push even the print statements into log file
+    # Any gRPC or SSL errors redirected to log file
     os.dup2(log_file.fileno(), sys.stderr.fileno())
+
+# Clean Up existing logging handlers
+cleanup_logging_handlers()
+
+# locate where we are
+here = os.path.abspath(os.path.dirname(__file__))
+
+path_to_log_config_file = os.path.join(here,'config','logging.conf')
+
+# Get the current date and time
+current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+# Create the log file name with the current datetime
+log_filename = f"log_{current_datetime}.log"
+
+# Decide whether to save logs in a file or not
+log_file_enable = os.environ.get("CI_LOG_FILE_ENABLE")
+
+log_handler_list = []
+
+if log_file_enable == "TRUE":
+    log_handler_list.append('rotatingFileHandler')
+elif log_file_enable == "FALSE" or log_file_enable is None:
+    pass
+else:
+    raise RuntimeError("Incorrect CI_LOG_FILE_ENABLE value. Should be - 'TRUE', 'FALSE' or ''")
+
+log_defaults = {}
+
+# Decide whether to print the logs in the console or not
+log_console_enable = os.environ.get("CI_LOG_CONSOLE_ENABLE")
+
+if log_console_enable == "TRUE":
+    log_handler_list.append('consoleHandler')
+elif log_console_enable == "FALSE" or log_console_enable is None:
+    pass
+else:
+    raise RuntimeError("Incorrect CI_LOG_CONSOLE_ENABLE value. Should be - 'TRUE', 'FALSE' or ''")
+
+
+if log_console_enable == "TRUE" and log_file_enable == "TRUE":
+    raise RuntimeError("Custom integration supports either console logging or file logging but not both")
+    # this is because of unable to override SSL errors logging configurations and able to only have them in either console or log file  
+
+
+# get log directory if going to save the logs
+if log_file_enable == "TRUE":
+    log_dir = os.path.join(here,"logs")
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    path_to_save_log = os.path.join(log_dir,log_filename)
+else:
+    # avoid logging to a file
+    path_to_save_log = '/dev/null'  # On Linux/MacOS, this discards logs (Windows: NUL) pylint:disable=invalid-name
+log_defaults['CI_LOG_FILE_PATH'] = path_to_save_log
+
+if log_handler_list:
+    log_defaults['CI_LOG_HANDLER'] = ",".join(log_handler_list)
+else:
+    log_defaults['CI_LOG_HANDLER'] = "nullHandler"
+
+
+# Set log levels
+log_level = os.environ.get("CI_LOG_LEVEL")
+if log_level is not None:
+    # set log level
+    if log_level not in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+        raise RuntimeError("Incorrect log level. Should be - 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'")
+
+    log_defaults['CI_LOG_LEVEL'] = log_level
+else:
+    log_defaults['CI_LOG_LEVEL'] = 'INFO' # default level
+
+
+# Load logging configuration
+logging.config.fileConfig(
+    path_to_log_config_file,
+    defaults=log_defaults
+)
+
+# create logger
+logger = logging.getLogger('custom_integration.main')
+
+
+if log_file_enable == "TRUE":
+    # this is necessary because SSL logs are printed onto the console.
+    # Python logging configuration doesn't seem to overrise SSL logging configuration.
+    # Hence this helps in redirecting the console output to log files
+    redirect_output_to_log(log_file_path=path_to_save_log)
 
 class DiscoveryService(discovery_pb2_grpc.DiscoveryServicer):
     def __init__(self) -> None:
@@ -105,32 +168,6 @@ def main(args):
         result_dict[key] = value
 
     config = result_dict
-
-    # Configure the root logger
-
-    # set log level
-    if config["log_level"] == "debug":
-        config["log_level"] = logging.DEBUG
-    elif config["log_level"] == "info":
-        config["log_level"] = logging.INFO
-    elif config["log_level"] == "warning":
-        config["log_level"] = logging.WARNING
-    elif config["log_level"] == "error":
-        config["log_level"] = logging.ERROR
-    elif config["log_level"] == "critical":
-        config["log_level"] = logging.CRITICAL
-    else:
-        raise RuntimeError("Incorrect log level. Should be one of debug, info, warning, error, critical")
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file_path = os.path.join(config["project_path"],"hf_integration","logs",f"{timestamp}.log")
-    setup_logging(log_file_path, config["log_level"])
-
-    # Redirect stdout and stderr
-    redirect_output_to_log(log_file_path)
-
-    # Create a logger object
-    logger = logging.getLogger(__name__)
 
     if integration == "generic":
         workspace_intg = WorkspaceServiceGeneric(config=config)
