@@ -204,9 +204,10 @@ Follow the steps here - https://www.notion.so/humanfirst/Custom-NLU-d4bb84f08676
 ## Docker commands
 
 ### Build image
-sudo docker build . -t clu-custom-connector:latest --no-cache
+`sudo docker build . -t clu-custom-connector:latest --no-cache`
 
 ### Create, attach and run the commands manually
+```
 sudo docker run -e "CLU_KEY=$CLU_KEY" -e "CLU_ENDPOINT=$CLU_ENDPOINT" -e "HF_USERNAME=$HF_USERNAME" -e "HF_PASSWORD=$HF_PASSWORD" -d --name clu-custom-connector-0 -p 443:443 clu-custom-connector tail -f /dev/null
 
 sudo docker exec -it clu-custom-connector-0 /bin/bash
@@ -218,3 +219,4 @@ sudo docker run -e "CLU_KEY=$CLU_KEY" -e "CLU_ENDPOINT=$CLU_ENDPOINT" -e "HF_USE
 
 ### Free up the port 443
 sudo kill -9 $(sudo lsof -t -i :443)
+```
