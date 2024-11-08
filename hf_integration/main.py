@@ -7,15 +7,15 @@ and the key-value pairs are separated by ,
 
 # standard imports
 import json
-from logging.handlers import RotatingFileHandler
 import sys
-from configparser import ConfigParser
 import logging
 import logging.config
 import os
 from datetime import datetime
 import grpc
 import time
+from pythonjsonlogger import jsonlogger
+import re
 
 # custom imports
 from .humanfirst.protobuf.external_integration.v1alpha1 import discovery_pb2, discovery_pb2_grpc, models_pb2_grpc, workspace_pb2_grpc
@@ -123,9 +123,19 @@ logging.config.fileConfig(
     defaults=log_defaults
 )
 
+
+# Add JSON formatter to the handlers
+def add_json_formatter_to_handlers():
+    json_formatter = jsonlogger.JsonFormatter('%(asctime)s %(name)s %(levelname)s %(message)s')
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        handler.setFormatter(json_formatter)
+
+# Apply JSON formatter
+add_json_formatter_to_handlers()
+
 # create logger
 logger = logging.getLogger('custom_integration.main')
-
 
 if log_file_enable == "TRUE":
     # this is necessary because SSL logs are printed onto the console.
@@ -168,6 +178,9 @@ def main(args):
         result_dict[key] = value
 
     config = result_dict
+
+    # set project path
+    config["project_path"] = here
 
     if integration == "generic":
         workspace_intg = WorkspaceServiceGeneric(config=config)

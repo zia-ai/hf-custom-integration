@@ -13,9 +13,11 @@ import logging
 import logging.config
 import os
 from datetime import datetime
+import sys
 
 # 3rd party imports
 import aiohttp
+from pythonjsonlogger import jsonlogger
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.language.conversations.authoring import ConversationAuthoringClient
 from azure.core.rest import HttpRequest
@@ -101,6 +103,16 @@ logging.config.fileConfig(
     defaults=log_defaults
 )
 
+# Add JSON formatter to the handlers
+def add_json_formatter_to_handlers():
+    json_formatter = jsonlogger.JsonFormatter('%(asctime)s %(name)s %(levelname)s %(message)s')
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        handler.setFormatter(json_formatter)
+
+# Apply JSON formatter
+add_json_formatter_to_handlers()
+
 # create logger
 logger = logging.getLogger('custom_integration.clu_apis')
 
@@ -158,7 +170,7 @@ class clu_apis:
             NormalizeCasing: False // This preserves the case of the utterances
         """
 
-        print("CREATE PROJECT API CALL")
+        logger.info("CREATE PROJECT API CALL")
         project_name = self._remove_non_alphanumeric(input_string=project_name)
         project = {
             "projectName": project_name,
@@ -184,7 +196,7 @@ class clu_apis:
         )
         response = poller.result()
         if response["status"] == "succeeded":
-            print(f"Import jobid: {response['jobId']} is successful")
+            logger.info(f"Import jobid: {response['jobId']} is successful")
         else:
             raise RuntimeError(f"Import jobid: {response['jobId']} failed")
 
@@ -198,7 +210,7 @@ class clu_apis:
         response = self.client.send_request(HttpRequest(method="GET",url=export_project.result()["resultUrl"]))
         response.raise_for_status() # raises an error if response had error status code
 
-        print(f"Export is done successfully")
+        logger.info(f"Export is done successfully")
 
         return response.json()
     
@@ -209,7 +221,7 @@ class clu_apis:
                     training_mode: str = "standard"):
         """Model Train"""
 
-        print("\nTRAIN MODEL API CALL\n")
+        logger.info("\nTRAIN MODEL API CALL\n")
 
         while True:
             try:
@@ -227,22 +239,22 @@ class clu_apis:
                                 },
                                 content_type = "application/json")
                 training_status = response.status()
-                print(f"Train Model Status: {training_status}")
-                print(f"Response: {response}")
+                logger.info(f"Train Model Status: {training_status}")
+                logger.info(f"Response: {response}")
                 while training_status in ["InProgress","notStarted","running"]:
                     sleep(5)
                     training_status = response.status()
-                    print(f"Train Model Status: {training_status}")
+                    logger.info(f"Train Model Status: {training_status}")
                 else:
                     if training_status == "succeeded":
                         response_result = response.result()
-                        print(f"Result: {response_result}")
+                        logger.info(f"Result: {response_result}")
                         return response_result
                     elif training_status == "cancelling":
                         while training_status != "cancelled":
                             sleep(5)
                             training_status = response.status()
-                            print(f"Train Model Status: {training_status}")
+                            logger.info(f"Train Model Status: {training_status}")
                         raise exceptions.ServiceResponseError(f'Model training is terminated in CLU.')
                     elif training_status == "Failed":
                         raise RuntimeError(f'Getting Failed status. Agent created might have been deleted')
@@ -252,7 +264,7 @@ class clu_apis:
             except HttpResponseError as e:
                 if e.response.status_code == 429:
                     retry_after = int(e.response.headers.get("Retry-After", 1))
-                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    logger.info(f"Rate limit hit. Retrying after {retry_after} seconds.")
                     sleep(retry_after)
                 else:
                     raise
@@ -261,7 +273,7 @@ class clu_apis:
                            project_name: str):
         """List trained model"""
 
-        print("\nLIST TRAINED MODEL API CALL\n")
+        logger.info("\nLIST TRAINED MODEL API CALL\n")
 
         while True:
             try:
@@ -270,7 +282,7 @@ class clu_apis:
             except HttpResponseError as e:
                 if e.response.status_code == 429:
                     retry_after = int(e.response.headers.get("Retry-After", 1))
-                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    logger.info(f"Rate limit hit. Retrying after {retry_after} seconds.")
                     sleep(retry_after)
                 else:
                     raise
@@ -280,7 +292,7 @@ class clu_apis:
                              model_label: str):
         """Delete trained model"""
 
-        print("\nDELETE TRAINED MODEL API CALL\n")
+        logger.info("\nDELETE TRAINED MODEL API CALL\n")
 
         while True:
             try:
@@ -292,7 +304,7 @@ class clu_apis:
             except HttpResponseError as e:
                 if e.response.status_code == 429:
                     retry_after = int(e.response.headers.get("Retry-After", 1))
-                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    logger.info(f"Rate limit hit. Retrying after {retry_after} seconds.")
                     sleep(retry_after)
                 else:
                     raise
@@ -303,7 +315,7 @@ class clu_apis:
                 model_label: str):
         """Deploy trained model"""
 
-        print("\nDEPLOY MODEL API CALL\n")
+        logger.info("\nDEPLOY MODEL API CALL\n")
 
         while True:
             try:
@@ -316,22 +328,22 @@ class clu_apis:
                     content_type = "application/json"
                 )
                 deploy_status = response.status()
-                print(f"Deploy Model Status: {deploy_status}")
-                print(f"Response: {response}")
+                logger.info(f"Deploy Model Status: {deploy_status}")
+                logger.info(f"Response: {response}")
                 while deploy_status in ["InProgress","notStarted","running"]:
                     sleep(5)
                     deploy_status = response.status()
-                    print(f"Deploy Model Status: {deploy_status}")
+                    logger.info(f"Deploy Model Status: {deploy_status}")
                 else:
                     if deploy_status == "succeeded":
                         response_result = response.result()
-                        print(f"Result: {response_result}")
+                        logger.info(f"Result: {response_result}")
                         return response_result
                     elif deploy_status == "cancelling":
                         while deploy_status != "cancelled":
                             sleep(5)
                             deploy_status = response.status()
-                            print(f"Deploy Model Status: {deploy_status}")
+                            logger.info(f"Deploy Model Status: {deploy_status}")
                         raise RuntimeError(f'Model deployment is terminated in CLU.')
                     elif deploy_status == "Failed":
                         raise RuntimeError(f'Getting Failed status. Agent created might have been deleted')
@@ -341,7 +353,7 @@ class clu_apis:
             except HttpResponseError as e:
                 if e.response.status_code == 429:
                     retry_after = int(e.response.headers.get("Retry-After", 1))
-                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    logger.info(f"Rate limit hit. Retrying after {retry_after} seconds.")
                     sleep(retry_after)
                 else:
                     raise
@@ -351,7 +363,7 @@ class clu_apis:
                           model_label: str):
         """Get trained model"""
 
-        print("\nGET TRAINED MODEL API CALL\n")
+        logger.info("\nGET TRAINED MODEL API CALL\n")
 
         while True:
             try:
@@ -363,14 +375,14 @@ class clu_apis:
             except HttpResponseError as e:
                 if e.response.status_code == 429:
                     retry_after = int(e.response.headers.get("Retry-After", 1))
-                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    logger.info(f"Rate limit hit. Retrying after {retry_after} seconds.")
                     sleep(retry_after)
                 else:
                     raise
 
     async def predict(self, project_name: str, deployment_name: str, endpoint: str, text: str, is_cancelled: threading.Event):
         """Predict"""
-        print("\nPREDICT API CALL\n")
+        logger.info("\nPREDICT API CALL\n")
 
         data = {
             "kind": "Conversation",
@@ -402,7 +414,7 @@ class clu_apis:
 
                 # Check for cancellation before starting the request
                 if asyncio.current_task().cancelled() or is_cancelled.is_set():
-                    print("Cancellation requested before predict call.")
+                    logger.info("Cancellation requested before predict call.")
                     raise asyncio.CancelledError
 
                 # run_in_executor also raises asyncio.CancelledError error if the task is cancelled
@@ -412,13 +424,13 @@ class clu_apis:
             
             except HttpResponseError as e:
                 if e.response.status_code == 429:
-                    print("Caught 429 Response code")
+                    logger.info("Caught 429 Response code")
                     retry_after = int(e.response.headers.get("Retry-After", 1))
-                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    logger.info(f"Rate limit hit. Retrying after {retry_after} seconds.")
 
                     # Check for cancellation before sleeping for retry
                     if asyncio.current_task().cancelled() or is_cancelled.is_set():
-                        print("Cancellation requested during retry wait.")
+                        logger.info("Cancellation requested during retry wait.")
                         raise asyncio.CancelledError
 
                     await asyncio.sleep(retry_after)
@@ -426,14 +438,14 @@ class clu_apis:
                     raise # Raises other exceptions such as resource not found (deployment doesn't exists), etc., which handling is not required
                     # do not return any empty values while trying to handle any exceptions. Might cause issues while handling the aynchronously generated results. 
             except asyncio.CancelledError:
-                print("Predict task has been cancelled.")
+                logger.info("Predict task has been cancelled.")
                 raise
 
     def delete_project(self,
                        project_name: str):
         """Deletes a project"""
 
-        print("\nDELETE PROJECT API CALL\n")
+        logger.info("\nDELETE PROJECT API CALL\n")
 
         while True:
             try:
@@ -442,10 +454,10 @@ class clu_apis:
             except HttpResponseError as e:
                 if e.response.status_code == 429:
                     retry_after = int(e.response.headers.get("Retry-After", 1))
-                    print(f"Rate limit hit. Retrying after {retry_after} seconds.")
+                    logger.info(f"Rate limit hit. Retrying after {retry_after} seconds.")
                     sleep(retry_after)
                 elif e.response.status_code == 404:
                     return response
                 else:
-                    print("Not handling this reponse code")
+                    logger.info("Not handling this reponse code")
                     raise

@@ -30,8 +30,8 @@ class ModelServiceGeneric(discovery_pb2_grpc.DiscoveryServicer, models_pb2_grpc.
             phrase_tag_predicate=None,
             skip_empty_intents=False,
         )
-        self.snapshot_path = os.path.join(self.config["project_path"],"hf_integration/workspaces/")
-        self.model_handle_path = os.path.join(self.config["project_path"],"hf_integration/data/handlemap.json")
+        self.snapshot_path = os.path.join(self.config["project_path"],"workspaces")
+        self.model_handle_path = os.path.join(self.config["project_path"],"data","handlemap.json")
 
         if not os.path.exists(self.model_handle_path):
             with open(self.model_handle_path, mode="w", encoding="utf8") as f:

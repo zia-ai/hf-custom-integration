@@ -13,9 +13,11 @@ import threading
 import logging.config
 import os
 from datetime import datetime
+import sys
 
 # 3rd party imports
 import humanfirst
+from pythonjsonlogger import jsonlogger
 import aiohttp
 import grpc
 
@@ -121,6 +123,16 @@ logging.config.fileConfig(
     defaults=log_defaults
 )
 
+# Add JSON formatter to the handlers
+def add_json_formatter_to_handlers():
+    json_formatter = jsonlogger.JsonFormatter('%(asctime)s %(name)s %(levelname)s %(message)s')
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        handler.setFormatter(json_formatter)
+
+# Apply JSON formatter
+add_json_formatter_to_handlers()
+
 # create logger
 logger = logging.getLogger('custom_integration.model_clu')
 
@@ -143,6 +155,7 @@ class ModelServiceCLU(ModelServiceGeneric):
         else:
             raise RuntimeError(f'{self.config["clu_language"]} is not supported by CLU')
 
+        # train a model in one language and use to predict intents and entities from utterances in another language 
         self.multilingual = {"True": True, "False": False}[self.config["clu_multilingual"]]
 
         # Check for correct training mode
@@ -177,7 +190,7 @@ class ModelServiceCLU(ModelServiceGeneric):
     def ListModels(self, request: models_pb2.ListModelsRequest, context) -> models_pb2.ListModelsResponse:
         """Indicate that this service does not have any prebuilt models"""
 
-        print("ListModels")
+        logger.info("ListModels")
 
         return models_pb2.ListModelsResponse()
 
@@ -188,14 +201,14 @@ class ModelServiceCLU(ModelServiceGeneric):
         Not implemented yet
         """
 
-        print("GetModel")
+        logger.info("GetModel")
 
         raise NotImplementedError()
 
     def GetTrainParameters(self, request: models_pb2.GetTrainParametersRequest, context) -> models_pb2.GetTrainParametersResponse:
         """Indicate the data format in which training data should be provided"""
 
-        print("GetTrainParameters")
+        logger.info("GetTrainParameters")
 
         return models_pb2.GetTrainParametersResponse(
             data_format=self.data_format,
@@ -207,7 +220,7 @@ class ModelServiceCLU(ModelServiceGeneric):
     def TrainModel(self, request: models_pb2.TrainModelRequest, context) -> models_pb2.TrainModelResponse:
         """Trains a model and handles cancellation"""
 
-        print("TrainModel")
+        logger.info("TrainModel")
 
         # Get the current timestamp
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -230,7 +243,7 @@ class ModelServiceCLU(ModelServiceGeneric):
         # Callback to handle cancellation
         def on_cancel():
             if not self.request_completed_train.is_set():
-                print("Training has been cancelled.")
+                logger.info("Training has been cancelled.")
                 self.is_cancelled_train.set()
 
                 # Cleanup logic here
@@ -243,7 +256,7 @@ class ModelServiceCLU(ModelServiceGeneric):
         try:
             # Check for cancellation periodically
             if self.is_cancelled_train.is_set():
-                print("Cancelled before project creation.")
+                logger.info("Cancelled before project creation.")
                 # Send signal to client that the operation has been aborted
                 context.abort(grpc.StatusCode.CANCELLED, "Training cancelled by client.")
                 return
@@ -253,11 +266,11 @@ class ModelServiceCLU(ModelServiceGeneric):
                                             des="Train and eval",
                                             language=self.language,
                                             multilingual=self.multilingual)
-            print("\nNew project created")
+            logger.info("\nNew project created")
 
             # Check for cancellation
             if self.is_cancelled_train.is_set():
-                print("Cancelled after project creation.")
+                logger.info("Cancelled after project creation.")
                 # Send signal to client that the operation has been aborted
                 context.abort(grpc.StatusCode.CANCELLED, "Training cancelled by client.")
                 return
@@ -280,11 +293,11 @@ class ModelServiceCLU(ModelServiceGeneric):
 
             # Import workspace
             self.workspace.ImportWorkspace(request=import_request, context=import_context)
-            print("\nProject imported")
+            logger.info("\nProject imported")
 
             # Check for cancellation
             if self.is_cancelled_train.is_set():
-                print("Cancelled after workspace import.")
+                logger.info("Cancelled after workspace import.")
                 # Send signal to client that the operation has been aborted
                 context.abort(grpc.StatusCode.CANCELLED, "Training cancelled by client.")
                 return
@@ -297,7 +310,7 @@ class ModelServiceCLU(ModelServiceGeneric):
 
             # Check for cancellation
             if self.is_cancelled_train.is_set():
-                print("Cancelled during training.")
+                logger.info("Cancelled during training.")
                 # Send signal to client that the operation has been aborted
                 context.abort(grpc.StatusCode.CANCELLED, "Training cancelled by client.")
                 return
@@ -324,7 +337,7 @@ class ModelServiceCLU(ModelServiceGeneric):
             
             # Check for cancellation
             if self.is_cancelled_train.is_set():
-                print("Cancelled during deployment.")
+                logger.info("Cancelled during deployment.")
                 # Send signal to client that the operation has been aborted
                 context.abort(grpc.StatusCode.CANCELLED, "Training cancelled by client.")
                 return
@@ -347,17 +360,17 @@ class ModelServiceCLU(ModelServiceGeneric):
         # Catch RpcError exceptions which may be raised if context is cancelled
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.CANCELLED:
-                print("Caught cancellation during processing.")
+                logger.info("Caught cancellation during processing.")
                 return context.abort(grpc.StatusCode.CANCELLED, "Training cancelled by client.")
             else:
                 # Handle other gRPC exceptions if necessary
-                print(f"An error occurred: {e}")
+                logger.info(f"An error occurred: {e}")
                 context.abort(grpc.StatusCode.UNKNOWN, "An unknown error occurred during training.")
 
     def UnloadModel(self, request: models_pb2.UnloadModelRequest, context) -> models_pb2.UnloadModelResponse:
         """Unload Model"""
 
-        print("UnloadModel")
+        logger.info("UnloadModel")
 
         project_name = self.handle_map[request.model_id]["project_name"]
         model_label = self.handle_map[request.model_id]["model_label"]
@@ -370,7 +383,7 @@ class ModelServiceCLU(ModelServiceGeneric):
     def DeleteModel(self, request: models_pb2.DeleteModelRequest, context) -> models_pb2.DeleteModelResponse:
         """Delete Model"""
 
-        print("DeleteModel")
+        logger.info("DeleteModel")
 
         project_name = self.handle_map[request.model_id]["project_name"]
         self.clu_api.delete_project(
@@ -382,7 +395,7 @@ class ModelServiceCLU(ModelServiceGeneric):
     async def Classify(self, request: models_pb2.ClassifyRequest, context) -> models_pb2.ClassifyResponse:
         """Predicts utterances"""
 
-        print("Classify")
+        logger.info("Classify")
 
         # Set up cancellation flag
         self.is_cancelled_classify = threading.Event()
@@ -400,7 +413,7 @@ class ModelServiceCLU(ModelServiceGeneric):
         # Define the cancellation callback
         def on_cancel():
             if not self.request_completed_classify.is_set():
-                print("Inference has been cancelled.")
+                logger.info("Inference has been cancelled.")
                 self.is_cancelled_classify.set()
                 project_name = self.handle_map[request.model_id]["project_name"]
 
@@ -409,7 +422,7 @@ class ModelServiceCLU(ModelServiceGeneric):
                     loop = asyncio.get_event_loop()
                 except RuntimeError:
                     # If no loop is found (because it's running in a different thread)
-                    print("No running event loop, creating a new one.")
+                    logger.info("No running event loop, creating a new one.")
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
 
@@ -448,7 +461,7 @@ class ModelServiceCLU(ModelServiceGeneric):
             for ex in request.examples:
                 # Check for cancellation before creating tasks
                 if self.is_cancelled_classify.is_set():
-                    print("Cancelled before inference tasks.")
+                    logger.info("Cancelled before inference tasks.")
                     context.abort(grpc.StatusCode.CANCELLED, "Inference cancelled by client.")
                     return
 
@@ -467,20 +480,20 @@ class ModelServiceCLU(ModelServiceGeneric):
             try:
                 predict_results = await asyncio.gather(*tasks)
             except asyncio.CancelledError:
-                print("Cancelled during async gather.")
+                logger.info("Cancelled during async gather.")
                 context.abort(grpc.StatusCode.CANCELLED, "Inference cancelled during processing.")
                 return
 
             # Check if cancellation happened after prediction results
             if self.is_cancelled_classify.is_set():
-                print("Cancelled after predictions.")
+                logger.info("Cancelled after predictions.")
                 context.abort(grpc.StatusCode.CANCELLED, "Inference cancelled by client.")
                 return
 
             for data in predict_results:
                 # Do not uncomment
                 # if isinstance(data, Exception):
-                #     print(f"Skipping failed task due to error: {data}")
+                #     logger.info(f"Skipping failed task due to error: {data}")
                 #     continue
                 # Extract intents and entities
                 intents = data['result']['prediction']['intents']
@@ -533,13 +546,13 @@ class ModelServiceCLU(ModelServiceGeneric):
 
                 # Check if cancellation happened while processing prediction results
                 if self.is_cancelled_classify.is_set():
-                    print("Cancelled while processing prediction results.")
+                    logger.info("Cancelled while processing prediction results.")
                     context.abort(grpc.StatusCode.CANCELLED, "Inference cancelled by client.")
                     return
 
             # Check if cancellation happened while processing prediction results
             if self.is_cancelled_classify.is_set():
-                print("Cancelled after processing prediction results")
+                logger.info("Cancelled after processing prediction results")
                 context.abort(grpc.StatusCode.CANCELLED, "Inference cancelled by client.")
                 return
             
@@ -551,17 +564,17 @@ class ModelServiceCLU(ModelServiceGeneric):
         # Catch RpcError exceptions which may be raised if context is cancelled
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.CANCELLED:
-                print("Caught cancellation during processing.")
+                logger.info("Caught cancellation during processing.")
                 return context.abort(grpc.StatusCode.CANCELLED, "Training cancelled by client.")
             else:
                 # Handle other gRPC exceptions if necessary
-                print(f"An error occurred: {e}")
+                logger.info(f"An error occurred: {e}")
                 context.abort(grpc.StatusCode.UNKNOWN, "An unknown error occurred during training.")
         except asyncio.CancelledError:
-            print("Cancelled during processing.")
+            logger.info("Cancelled during processing.")
             context.abort(grpc.StatusCode.CANCELLED, "Inference cancelled by client.")
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            logger.info(f"Unexpected error: {e}")
             context.abort(grpc.StatusCode.INTERNAL, "Internal error occurred.")
 
     def Embed(self, request: models_pb2.EmbedRequest, context) -> models_pb2.EmbedResponse:

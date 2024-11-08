@@ -9,6 +9,10 @@ import io
 import logging.config
 import os
 from datetime import datetime
+import sys
+
+# 3rd party imports
+from pythonjsonlogger import jsonlogger
 
 # custom imports
 from hf_integration.workspace_generic import WorkspaceServiceGeneric
@@ -108,6 +112,16 @@ logging.config.fileConfig(
     defaults=log_defaults
 )
 
+# Add JSON formatter to the handlers
+def add_json_formatter_to_handlers():
+    json_formatter = jsonlogger.JsonFormatter('%(asctime)s %(name)s %(levelname)s %(message)s')
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        handler.setFormatter(json_formatter)
+
+# Apply JSON formatter
+add_json_formatter_to_handlers()
+
 # create logger
 logger = logging.getLogger('custom_integration.workspace_clu')
 
@@ -123,7 +137,7 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         self.clu_api = clu_apis(clu_endpoint=self.config["clu_endpoint"],
                                 clu_key=self.config["clu_key"])
         self.clu_converter = clu_converter()
-        self.workspace_path = os.path.join(self.config["project_path"],"hf_integration/workspaces/")
+        self.workspace_path = os.path.join(self.config["project_path"],"workspaces")
 
         # Check for language code support
         if self.config["clu_language"] in CLU_SUPPORTED_LANGUAGE_CODES:

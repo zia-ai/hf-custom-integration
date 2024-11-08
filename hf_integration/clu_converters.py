@@ -13,9 +13,11 @@ import copy
 import logging.config
 import os
 from datetime import datetime
+import sys
 
 # 3rd party imports
 import pandas
+from pythonjsonlogger import jsonlogger
 
 # custom imports
 import humanfirst
@@ -100,6 +102,16 @@ logging.config.fileConfig(
     path_to_log_config_file,
     defaults=log_defaults
 )
+
+# Add JSON formatter to the handlers
+def add_json_formatter_to_handlers():
+    json_formatter = jsonlogger.JsonFormatter('%(asctime)s %(name)s %(levelname)s %(message)s')
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        handler.setFormatter(json_formatter)
+
+# Apply JSON formatter
+add_json_formatter_to_handlers()
 
 # create logger
 logger = logging.getLogger('custom_integration.clu_converters')
@@ -323,8 +335,8 @@ class hf_to_clu_converter:
         # TODO: note potential clashes with utf16 and utf8 in future depending on PVA
 
         # get a HFWorkspace object to get fully qualified intent names
-        # print("delimiter blah blah")
-        print(f"Delimiter {delimiter}")
+        # logger.info("delimiter blah blah")
+        logger.info(f"Delimiter {delimiter}")
         hf_workspace = humanfirst.objects.HFWorkspace.from_json(hf_json,delimiter)
 
         # get the tag for Test dataset
@@ -338,13 +350,13 @@ class hf_to_clu_converter:
                     break
         
         if found:
-            print(f'Found test_tag_id: {test_tag_id}\n')
+            logger.info(f'Found test_tag_id: {test_tag_id}\n')
         else:
-            print('No test_tag_id found.\n')
+            logger.info('No test_tag_id found.\n')
 
         # examples section
         df_examples = pandas.json_normalize(hf_json["examples"])
-        print(df_examples)
+        logger.info(df_examples)
         df_examples["clu_utterance"] = df_examples.apply(self.hf_to_clu_utterance_mapper,
                                                         args=[language,hf_workspace,test_tag_id,skip],
                                                         axis=1)
@@ -357,13 +369,13 @@ class hf_to_clu_converter:
         for clu_utterance in clu_json["assets"]["utterances"]:
             clu_intent_names.add(clu_utterance["intent"])
         
-        # print(clu_intent_names)
+        # logger.info(clu_intent_names)
         # set to list
         clu_intents = []
         for intent_name in clu_intent_names:
             clu_intents.append(self.hf_to_clu_intent_mapper(intent_name))
         
-        # print(clu_intents)
+        # logger.info(clu_intents)
         #
         clu_json["assets"]["intents"] = clu_intents
 
@@ -446,7 +458,7 @@ class hf_to_clu_converter:
             if isinstance(row["tags"],list):
                 for tag in row["tags"]:
                     if tag["id"] == test_tag_id:
-                        # print("Found")
+                        # logger.info("Found")
                         dataset = TEST
                         break
             elif pandas.isna(row["tags"]):
@@ -455,8 +467,8 @@ class hf_to_clu_converter:
                 warnings.warn(f'Found utterance with tags not list or Na: {row}')
 
         intent_name = hf_workspace.get_fully_qualified_intent_name(row["intents"][0]["intent_id"])
-        # print(row["intents"][0]["intent_id"])
-        # print(intent_name)
+        # logger.info(row["intents"][0]["intent_id"])
+        # logger.info(intent_name)
         if len(intent_name) > 50:
             if not skip:
                 raise RuntimeError(f'intent name length of {len(intent_name)} exceeds 50 chars.  {intent_name}')
