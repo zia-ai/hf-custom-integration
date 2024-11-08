@@ -10,9 +10,14 @@ Convert CLU JSON into HF and  HF to CLU JSON
 import datetime
 import warnings
 import copy
+import logging.config
+import os
+from datetime import datetime
+import sys
 
 # 3rd party imports
 import pandas
+from pythonjsonlogger import jsonlogger
 
 # custom imports
 import humanfirst
@@ -20,6 +25,113 @@ import humanfirst
 # CLU name constants
 TRAIN="Train"
 TEST="Test"
+
+# locate where we are
+here = os.path.abspath(os.path.dirname(__file__))
+
+path_to_log_config_file = os.path.join(here,'config','logging.conf')
+
+# Get the current date and time
+current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+# Create the log file name with the current datetime
+log_filename = f"log_{current_datetime}.log"
+
+# Decide whether to save logs in a file or not
+log_file_enable = os.environ.get("CI_LOG_FILE_ENABLE")
+
+log_handler_list = []
+
+if log_file_enable == "TRUE":
+    log_handler_list.append('rotatingFileHandler')
+elif log_file_enable == "FALSE" or log_file_enable is None:
+    pass
+else:
+    raise RuntimeError("Incorrect CI_LOG_FILE_ENABLE value. Should be - 'TRUE', 'FALSE' or ''")
+
+log_defaults = {}
+
+# get log directory if going to save the logs
+if log_file_enable == "TRUE":
+    log_dir = os.path.join(here,"logs")
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    path_to_save_log = os.path.join(log_dir,log_filename)
+else:
+    # avoid logging to a file
+    path_to_save_log = '/dev/null'  # On Linux/MacOS, this discards logs (Windows: NUL) pylint:disable=invalid-name
+log_defaults['CI_LOG_FILE_PATH'] = path_to_save_log
+
+
+# Decide whether to print the logs in the console or not
+log_console_enable = os.environ.get("CI_LOG_CONSOLE_ENABLE")
+
+if log_console_enable == "TRUE":
+    log_handler_list.append('consoleHandler')
+elif log_console_enable == "FALSE" or log_console_enable is None:
+    pass
+else:
+    raise RuntimeError("Incorrect CI_LOG_CONSOLE_ENABLE value. Should be - 'TRUE', 'FALSE' or ''")
+
+
+if log_console_enable == "TRUE" and log_file_enable == "TRUE":
+    raise RuntimeError("Custom integration supports either console logging or file logging but not both")
+    # this is because of unable to override SSL errors logging configurations and able to only have them in either console or log file 
+
+
+if log_handler_list:
+    log_defaults['CI_LOG_HANDLER'] = ",".join(log_handler_list)
+else:
+    log_defaults['CI_LOG_HANDLER'] = "nullHandler"
+
+
+# Set log levels
+log_level = os.environ.get("CI_LOG_LEVEL")
+if log_level is not None:
+    # set log level
+    if log_level not in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+        raise RuntimeError("Incorrect log level. Should be - 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'")
+
+    log_defaults['CI_LOG_LEVEL'] = log_level
+else:
+    log_defaults['CI_LOG_LEVEL'] = 'INFO' # default level
+
+
+# Load logging configuration
+logging.config.fileConfig(
+    path_to_log_config_file,
+    defaults=log_defaults
+)
+
+# Add JSON formatter to the handlers
+def add_json_formatter_to_handlers():
+    json_formatter = jsonlogger.JsonFormatter('%(asctime)s %(name)s %(levelname)s %(message)s')
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        handler.setFormatter(json_formatter)
+
+# Apply JSON formatter
+add_json_formatter_to_handlers()
+
+# create logger
+logger = logging.getLogger('custom_integration.clu_converters')
+
+def utf8span(s: str, pos: int):
+    """
+    Compute the utf8 character index of the [pos] position within the string s
+    """
+
+    return len(s[:pos].encode('utf-8'))
+
+
+def reverse_utf8span(s: str, byte_index: int) -> int:
+    """
+    Compute the string character index of the [byte_index] position within the UTF-8 encoded string s
+    """
+    encoded = s.encode('utf-8')
+    truncated_encoded = encoded[:byte_index]
+    return len(truncated_encoded.decode('utf-8', errors='ignore'))
+
 
 class clu_to_hf_converter:
     def clu_to_hf_process(
@@ -64,7 +176,7 @@ class clu_to_hf_converter:
         df_clu_intents["category"].apply(self.clu_to_hf_intent_mapper,args=[hf_workspace,delimiter])
 
         # make utterances
-        created_at = datetime.datetime.now().isoformat()
+        created_at = datetime.now().isoformat()
         df_clu_utterances.apply(self.clu_to_hf_utterance_mapper,axis=1,args=[hf_workspace, created_at, delimiter])
 
         # go to JSON to do entities as not in HFWorkspace
@@ -99,36 +211,51 @@ class clu_to_hf_converter:
             if not known_entity:
                 warnings.warn(f'Unknown entity type keys are: {clu_entity_object.keys()}')
                 continue
-
+        
+        error_annotated_text = []
+        error_full_text = []
+        error_full_intent_name = []
         for i,_ in enumerate(clu_json["assets"]["utterances"]):
             if "entities" in clu_json["assets"]["utterances"][i]:
                 if clu_json["assets"]["utterances"][i]["entities"] != []:
                     hf_json["examples"][i]["entities"] = []
                     for clu_annotation in clu_json["assets"]["utterances"][i]["entities"]:
-                        start_index = clu_annotation["offset"]
-                        end_index = clu_annotation["offset"] + clu_annotation["length"]
-                        synonym = clu_json["assets"]["utterances"][i]["text"][start_index:end_index]
-                        for entity_key,entity_value in simple_entity[clu_annotation["category"]].items():
-                            for j,_ in enumerate(entity_value):
-                                entity_value[j] = entity_value[j].lower()
-                            if synonym.lower() in entity_value:
-                                hf_entity_key = entity_key
+                        start_char_index = clu_annotation["offset"]
+                        end_char_index = clu_annotation["offset"] + clu_annotation["length"]
+                        start_byte_index = utf8span(clu_json["assets"]["utterances"][i]["text"], start_char_index)
+                        end_byte_index = utf8span(clu_json["assets"]["utterances"][i]["text"], end_char_index)
+                        synonym = clu_json["assets"]["utterances"][i]["text"][start_char_index:end_char_index]
+                        utterance_text = clu_json["assets"]["utterances"][i]["text"]
+                        intent_name = clu_json["assets"]["utterances"][i]["intent"]
+                        for entity_key_value,entity_synonyms in simple_entity[clu_annotation["category"]].items():
+                            # HF tool allows case insensitive match
+                            if synonym.lower() == entity_key_value.lower():
+                                hf_entity_key = entity_key_value
+                                break
+                            for j,_ in enumerate(entity_synonyms):
+                                entity_synonyms[j] = entity_synonyms[j].lower()
+                            if synonym.lower() in entity_synonyms:
+                                hf_entity_key = entity_key_value
                                 break
                         else:
-                            raise RuntimeError(f"'{synonym}' is not present in entity: '{simple_entity[clu_annotation['category']]}'")
+                            error_annotated_text.append(synonym)
+                            error_full_text.append(utterance_text)
+                            error_full_intent_name.append(intent_name)
+                            # raise RuntimeError(f"'{synonym}' is not present in entity: '{simple_entity[clu_annotation['category']]}'")
 
                         hf_annotation = {
                             "name": clu_annotation["category"],
                             "text": synonym,
                             "span": {
-                                "from_character": start_index,
-                                "to_character": end_index
+                                "from_character": start_byte_index,
+                                "to_character": end_byte_index
                             },
                             "value": hf_entity_key
                         }
 
                         hf_json["examples"][i]["entities"].append(hf_annotation)
-
+        if len(error_annotated_text) != 0:
+            raise RuntimeError(f"Error annotatations: {error_annotated_text}\nIn corresponding utterance list : {error_full_text}\nIn corresponding intent list {error_full_intent_name}\nDon't exists in any entities")
         return hf_json
 
 
@@ -136,7 +263,7 @@ class clu_to_hf_converter:
         """Builds a HF entity object for any clu lists"""
 
         # hf_entity using name to generate hash id
-        isonow = datetime.datetime.now().isoformat()
+        isonow = datetime.now().isoformat()
         hf_entity =  {
             "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
             "name": clu_entity_object["category"],
@@ -178,7 +305,7 @@ class clu_to_hf_converter:
     def clu_to_hf_utterance_mapper(self, 
                                    row: pandas.Series,
                                    hf_workspace: humanfirst.objects.HFWorkspace,
-                                   created_at: datetime.datetime,
+                                   created_at: datetime,
                                    delimiter: str) -> None:
         """Builds HF example"""
         fully_qualified_intent_name = str(row["intent"])
@@ -208,6 +335,8 @@ class hf_to_clu_converter:
         # TODO: note potential clashes with utf16 and utf8 in future depending on PVA
 
         # get a HFWorkspace object to get fully qualified intent names
+        # logger.info("delimiter blah blah")
+        logger.info(f"Delimiter {delimiter}")
         hf_workspace = humanfirst.objects.HFWorkspace.from_json(hf_json,delimiter)
 
         # get the tag for Test dataset
@@ -221,13 +350,13 @@ class hf_to_clu_converter:
                     break
         
         if found:
-            print(f'Found test_tag_id: {test_tag_id}\n')
+            logger.info(f'Found test_tag_id: {test_tag_id}\n')
         else:
-            print('No test_tag_id found.\n')
+            logger.info('No test_tag_id found.\n')
 
         # examples section
         df_examples = pandas.json_normalize(hf_json["examples"])
-        print(df_examples)
+        logger.info(df_examples)
         df_examples["clu_utterance"] = df_examples.apply(self.hf_to_clu_utterance_mapper,
                                                         args=[language,hf_workspace,test_tag_id,skip],
                                                         axis=1)
@@ -235,13 +364,18 @@ class hf_to_clu_converter:
 
         # find any intents that were in utterances
         # this avoids creating any parents, but also doesn't create empty children
+        # TODO: Empty intents should be passed if the signal from the request deems it to be
         clu_intent_names = set()
         for clu_utterance in clu_json["assets"]["utterances"]:
             clu_intent_names.add(clu_utterance["intent"])
+        
+        # logger.info(clu_intent_names)
         # set to list
         clu_intents = []
         for intent_name in clu_intent_names:
             clu_intents.append(self.hf_to_clu_intent_mapper(intent_name))
+        
+        # logger.info(clu_intents)
         #
         clu_json["assets"]["intents"] = clu_intents
 
@@ -316,10 +450,7 @@ class hf_to_clu_converter:
                         hf_workspace: humanfirst.objects.HFWorkspace,
                         test_tag_id: str,
                         skip: bool) -> dict:
-        """Returns a clu_utterance as a dict with the language set to that passed
-        and the fully qualified intent name of the id in humanfirst
-        if the utterance is tagged as Test in HF this will be
-        put in test data set"""
+        """Maps CLU utterance to HF utterance format"""
 
         # Check fit the data is labelled Train/Test - all with no labels will be Train
         dataset = TRAIN
@@ -327,7 +458,7 @@ class hf_to_clu_converter:
             if isinstance(row["tags"],list):
                 for tag in row["tags"]:
                     if tag["id"] == test_tag_id:
-                        # print("Found")
+                        # logger.info("Found")
                         dataset = TEST
                         break
             elif pandas.isna(row["tags"]):
@@ -336,6 +467,8 @@ class hf_to_clu_converter:
                 warnings.warn(f'Found utterance with tags not list or Na: {row}')
 
         intent_name = hf_workspace.get_fully_qualified_intent_name(row["intents"][0]["intent_id"])
+        # logger.info(row["intents"][0]["intent_id"])
+        # logger.info(intent_name)
         if len(intent_name) > 50:
             if not skip:
                 raise RuntimeError(f'intent name length of {len(intent_name)} exceeds 50 chars.  {intent_name}')
@@ -344,10 +477,12 @@ class hf_to_clu_converter:
         if "entities" in row:
             if row["entities"] != [] and isinstance(row["entities"], list):
                 for hf_annotation in row["entities"]:
+                    start_char_index = reverse_utf8span(row["text"], hf_annotation["span"]["from_character"])
+                    end_char_index = reverse_utf8span(row["text"], hf_annotation["span"]["to_character"])
                     clu_annotation = {
                             "category": hf_annotation["name"],
-                            "offset": hf_annotation["span"]["from_character"],
-                            "length": hf_annotation["span"]["to_character"] - hf_annotation["span"]["from_character"]
+                            "offset": start_char_index,
+                            "length": end_char_index - start_char_index
                         }
 
                     clu_entities.append(clu_annotation)

@@ -1,116 +1,68 @@
-# Work in progress
-import threading, gc
-from typing import Any, Dict, Optional
-from dataclasses import dataclass
+"""
+Handles model training and k-fold evaluation
+"""
+# standard imports
+import asyncio
 
-from .models.huggingface.intent_entity import IntentEntityPipeline, Trainer
+# custom imports
+from .humanfirst.protobuf.external_integration.v1alpha1 import models_pb2
+from hf_integration.model_generic import ModelServiceGeneric
 
-from .humanfirst.protobuf.external_integration.v1alpha1 import discovery_pb2, discovery_pb2_grpc, models_pb2, models_pb2_grpc
-from .humanfirst.protobuf.playbook.data.config.v1alpha1 import config_pb2
+class ModelService():
+    """
+    This is a model service that can train and run k-fold evaluation
+    """
 
-
-@dataclass
-class IntegrationServiceConfig:
-    max_concurrent_train: int = 1
-    max_concurrent_models: int = 2
-
-class ModelService(discovery_pb2_grpc.DiscoveryServicer, models_pb2_grpc.ModelsServicer):
-    def __init__(self, config: Optional[IntegrationServiceConfig] = None) -> None:
-        super().__init__()
-        self.config = config if config is not None else IntegrationServiceConfig()
-        self.next_handle = 0
-        self.handle_map: Dict[int, IntentEntityPipeline] = {}
-        self.sema_models = threading.BoundedSemaphore(self.config.max_concurrent_train)
-        self.sema_train = threading.BoundedSemaphore(self.config.max_concurrent_models)
-
-    def _retain_model(self, model: IntentEntityPipeline) -> int:
-        handle = self.next_handle
-        self.next_handle += 1
-        self.handle_map[handle] = model
-
-        return handle
-
-    def _get_model(self, handle: int) -> Any:
-        model = self.handle_map.get(handle)
-        if model is None:
-            raise RuntimeError("no such handle exists")
-        return model
-
-    def _release_model(self, handle):
-        model = self.handle_map.get(handle)
-        if model is not None:
-            self.sema_models.release()
+    def __init__(self, integration: ModelServiceGeneric) -> None:
+        self.integration = integration
 
     def ListModels(self, request: models_pb2.ListModelsRequest, context) -> models_pb2.ListModelsResponse:
-        # Indicate that this service does not have any prebuilt models
-        return models_pb2.ListModelsResponse()
+        """Indicate that this service does not have any prebuilt models"""
+        
+        return self.integration.ListModels(request=request, context=context)
 
     def GetModel(self, request: models_pb2.GetModelRequest, context) -> models_pb2.Model:
-        # TODO: Implement model store
-        raise NotImplementedError()
+        """
+        If model store is implemented, then this requests gets the model from the model store
+        
+        Not implemented yet
+        """
+
+        return self.integration.GetModel(request=request, context=context)
 
     def GetTrainParameters(self, request: models_pb2.GetTrainParametersRequest, context) -> models_pb2.GetTrainParametersResponse:
-        # Indicate the data format in which trainin data should be provided
-        return models_pb2.GetTrainParametersResponse(
-            data_format=config_pb2.IntentsDataFormat.INTENTS_FORMAT_HF_JSON,
-            # These are all the default options, except for skip_empty_intents
-            format_options=config_pb2.IntentsDataOptions(
-                hierarchical_intent_name_disabled=False,
-                hierarchical_delimiter="",
-                zip_encoding=False,
-                gzip_encoding=False,
-                hierarchical_follow_up=False,
-                include_negative_phrases=False,
-                intent_tag_predicate=None,
-                phrase_tag_predicate=None,
-                skip_empty_intents=True
-            )
-        )
+        """Indicate the data format in which training data should be provided"""
+        
+        return self.integration.GetTrainParameters(request=request, context=context)
 
     def TrainModel(self, request: models_pb2.TrainModelRequest, context) -> models_pb2.TrainModelResponse:
-        # Acquire a semaphone in order to restrict the amount of live models in memory
-        self.sema_models.acquire()
+        """Trains a model"""
+        
+        return self.integration.TrainModel(request=request, context=context)
 
-        try:
-            self.sema_train.acquire()
-            trainer = Trainer(workspace_data=request.data)
-            pipeline = trainer.train()
-            handle = self._retain_model(pipeline)
-
-            return models_pb2.TrainModelResponse(
-                model=models_pb2.Model(
-                    id=f'{handle}',
-                    classification=models_pb2.ClassificationConfig(
-                        # Number of examples that will be sent in each `Classify` request
-                        max_batch_size=1000,
-                    )
-                )
-            )
-        except Exception:
-            self.sema_models.release()
-            raise
-        finally:
-            self.sema_train.release()
 
     def UnloadModel(self, request: models_pb2.UnloadModelRequest, context) -> models_pb2.UnloadModelResponse:
-        self._release_model(int(request.model_id))
-        del self.handle_map[int(request.model_id)]
-        gc.collect()
-        return models_pb2.UnloadModelResponse()
+        """Unload Model"""
+
+        return self.integration.UnloadModel(request=request, context=context)
+
 
     def DeleteModel(self, request: models_pb2.DeleteModelRequest, context) -> models_pb2.DeleteModelResponse:
-        self._release_model(int(request.model_id))
-        del self.handle_map[int(request.model_id)]
-        gc.collect()
-        return models_pb2.DeleteModelResponse()
+        """Delete Model"""
+
+        return self.integration.DeleteModel(request=request, context=context)
+
 
     def Classify(self, request: models_pb2.ClassifyRequest, context) -> models_pb2.ClassifyResponse:
-        pipeline = self._get_model(int(request.model_id))
+        """Predicts utterances"""
 
-        inputs = [ex.contents for ex in request.examples]
-        predictions = pipeline(inputs)
-
-        return models_pb2.ClassifyResponse(predictions=predictions)
+        return asyncio.run(self.integration.Classify(request=request, context=context))
 
     def Embed(self, request: models_pb2.EmbedRequest, context) -> models_pb2.EmbedResponse:
-        raise NotImplementedError()
+        """
+        Embeddings
+
+        Not implemented yet
+        """
+
+        return self.integration.Embed(request=request, context=context)
