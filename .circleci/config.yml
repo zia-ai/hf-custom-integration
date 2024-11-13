@@ -51,13 +51,13 @@ aliases:
 jobs:
   build-docker-image:
     docker:
-      - image: docker:27-cli
+      - image: moby/buildkit:master
         entrypoint: /bin/sh
         # auth: *gcr_auth
     resource_class: zia-ai/small
     steps:
       - checkout
-      - run: *configure_buildx_context
+      # - run: *configure_buildx_context
       - run: *gcp_auth
       - run: *configure_docker_credential
       - run:
@@ -66,7 +66,13 @@ jobs:
             IMAGE_SHA1=$(echo $CIRCLE_SHA1 | cut -c -7)
             IMAGE_BRANCH=$(echo $CIRCLE_BRANCH | sed -e 's/\//\-/g')
             IMAGE_TAG="${CIRCLE_TAG:-$IMAGE_BRANCH}"
+            buildctl \
+            --addr tcp://buildkitd-0.buildkitd-headless.circleci.svc.cluster.local:1234 \
+            --tlscacert /certs/ca.pem \
+            --tlscert /certs/cert.pem \
+            --tlskey /certs/key.pem \
+            build --frontend dockerfile.v0 --local context=. --local dockerfile=. --output type=image,name=test-integration:$IMAGE_TAG  
 
-            docker build -t test-integration:$IMAGE_TAG .
+            # docker build -t test-integration:$IMAGE_TAG .
             # docker build -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_TAG .
             # docker push $IMAGE_URL/$IMAGE_NAME:$IMAGE_TAG
