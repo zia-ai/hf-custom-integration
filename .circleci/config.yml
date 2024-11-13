@@ -40,9 +40,8 @@ aliases:
     name: Install docker credential helper
     command: |
       apk add --no-cache curl
-      mkdir -p ~/bin && cd ~/bin
+      cd /usr/local/bin
       curl -L https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v2.1.0/docker-credential-gcr_linux_amd64-2.1.0.tar.gz | tar zxv
-      export PATH=$PATH:~/bin
       mkdir -p $HOME/.config/gcloud/
       echo ${GOOGLE_AUTH} > $HOME/.config/gcloud/application_default_credentials.json
       docker-credential-gcr configure-docker
@@ -66,12 +65,14 @@ jobs:
             IMAGE_SHA1=$(echo $CIRCLE_SHA1 | cut -c -7)
             IMAGE_BRANCH=$(echo $CIRCLE_BRANCH | sed -e 's/\//\-/g')
             IMAGE_TAG="${CIRCLE_TAG:-$IMAGE_BRANCH}"
+            IMAGE_NAME="clu-integration"
             buildctl \
             --addr tcp://buildkitd-0.buildkitd-headless.circleci.svc.cluster.local:1234 \
             --tlscacert /certs/ca.pem \
             --tlscert /certs/cert.pem \
             --tlskey /certs/key.pem \
-            build --frontend dockerfile.v0 --local context=. --local dockerfile=. --output type=image,name=test-integration:$IMAGE_TAG  
+            build --frontend dockerfile.v0 --local context=. --local dockerfile=. --output type=image,name=$IMAGE_URL/$IMAGE_NAME:$IMAGE_TAG,push=true --output type=image,name=$IMAGE_URL/$IMAGE_NAME:$IMAGE_SHA1,push=true
+          
 
             # docker build -t test-integration:$IMAGE_TAG .
             # docker build -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_TAG .
