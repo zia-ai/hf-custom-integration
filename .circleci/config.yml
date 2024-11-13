@@ -6,7 +6,7 @@ workflows:
       - build-docker-image:
           context:
             - org-global
-commands:
+aliases:
   - &configure_buildx_context
     name: Configure remote docker buildx context
     command: |
