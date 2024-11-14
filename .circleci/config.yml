@@ -39,9 +39,11 @@ aliases:
   - &configure_docker_credential
     name: Install docker credential helper
     command: |
-      apk add --no-cache curl
-      cd /usr/local/bin
-      curl -L https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v2.1.0/docker-credential-gcr_linux_amd64-2.1.0.tar.gz | tar zxv
+      mkdir -p ~/bin
+      pushd ~/bin
+        curl -L https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v2.1.0/docker-credential-gcr_linux_amd64-2.1.0.tar.gz | tar zxv
+      popd
+      export PATH=$PATH:~/bin
       mkdir -p $HOME/.config/gcloud/
       echo ${GOOGLE_AUTH} > $HOME/.config/gcloud/application_default_credentials.json
       docker-credential-gcr configure-docker
@@ -50,13 +52,11 @@ aliases:
 jobs:
   build-docker-image:
     docker:
-      - image: moby/buildkit:master
-        entrypoint: /bin/sh
-        # auth: *gcr_auth
+      - image: cimg/base:current-22.04
     resource_class: zia-ai/small
     steps:
       - checkout
-      # - run: *configure_buildx_context
+      - run: *configure_buildx_context
       - run: *gcp_auth
       - run: *configure_docker_credential
       - run:
@@ -66,14 +66,4 @@ jobs:
             IMAGE_BRANCH=$(echo $CIRCLE_BRANCH | sed -e 's/\//\-/g')
             IMAGE_TAG="${CIRCLE_TAG:-$IMAGE_BRANCH}"
             IMAGE_NAME="clu-integration"
-            buildctl \
-            --addr tcp://buildkitd-0.buildkitd-headless.circleci.svc.cluster.local:1234 \
-            --tlscacert /certs/ca.pem \
-            --tlscert /certs/cert.pem \
-            --tlskey /certs/key.pem \
-            build --frontend dockerfile.v0 --local context=. --local dockerfile=. --output type=image,name=$IMAGE_URL/$IMAGE_NAME:$IMAGE_TAG,push=true --output type=image,name=$IMAGE_URL/$IMAGE_NAME:$IMAGE_SHA1,push=true
-          
-
-            # docker build -t test-integration:$IMAGE_TAG .
-            # docker build -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_TAG .
-            # docker push $IMAGE_URL/$IMAGE_NAME:$IMAGE_TAG
+            docker buildx build -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_TAG -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_SHA1 --push .
