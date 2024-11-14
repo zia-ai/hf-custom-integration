@@ -66,4 +66,4 @@ jobs:
             IMAGE_BRANCH=$(echo $CIRCLE_BRANCH | sed -e 's/\//\-/g')
             IMAGE_TAG="${CIRCLE_TAG:-$IMAGE_BRANCH}"
             IMAGE_NAME="clu-integration"
-            docker buildx build -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_TAG -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_SHA1 --push .
+            docker buildx build -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_TAG -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_SHA1 --progress plain --push .
