@@ -1,11 +1,17 @@
 version: 2.1
 workflows:
   build:
-    # when: << pipeline.parameters.run_delete_environment_workflow >>
     jobs:
       - build-docker-image:
           context:
             - org-global
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+
+
 aliases:
   - &configure_buildx_context
     name: Configure remote docker buildx context
