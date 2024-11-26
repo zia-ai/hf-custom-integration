@@ -147,12 +147,21 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         
         self.multilingual = self.multilingual = {"True": True, "False": False}[self.config["clu_multilingual"]]
 
+        # check for delimiter
+        if "delimiter" in self.config:
+            if self.config["delimiter"] != "":
+                self.format_options.hierarchical_delimiter=self.config["delimiter"]
+
+
     def _write_json(self,path: str, data: dict ) -> None:
         with open(path,mode="w",encoding="utf8") as f:
             json.dump(data,f,indent=2)
 
     def ListWorkspaces(self, request: workspace_pb2.ListWorkspacesRequest, context) -> workspace_pb2.ListWorkspacesResponse:
         """List Workspaces"""
+
+        print("ListWorkspaces")
+        print(request)
 
         workspaces = []
         for project in self.clu_api.list_projects():
@@ -163,6 +172,10 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
     def GetWorkspace(self, request: workspace_pb2.GetWorkspaceRequest, context) -> workspace_pb2.Workspace:
         """Get workspace"""
 
+        print("GetWorkspace")
+
+        print(request)
+
         if request.workspace_id in self.clu_api.list_projects():
             return workspace_pb2.Workspace(id=request.workspace_id, name=request.workspace_id)
         else:
@@ -172,6 +185,8 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         """
         Create a new workspace
         """
+        print("CreateWorkspace")
+        print(request)
         self.clu_api.clu_create_project(project_name=request.workspace.name,
                                         des = request.workspace.description,
                                         language=self.language,
@@ -185,14 +200,19 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
 
         In this case, we specifically request the HF json format
         """
-
+        print("GetImportParameters")
+        print(request)
+        # print(request.language_code)
         return workspace_pb2.GetImportParametersResponse(data_format=self.data_format, format_options=self.format_options)
 
     def ImportWorkspace(self, request: workspace_pb2.ImportWorkspaceRequest, context) -> workspace_pb2.ImportWorkspaceResponse:
         """
         Import a workspace into the integration, from the provided data exported from Studio
         """
-
+        print("ImportWorkspace")
+        print(request)
+        print(f"Hierarchical Delimiter: {request.format_options.hierarchical_delimiter}")
+        # print(request.language_code)
         # Get the current timestamp
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         project_name = self.clu_api._remove_non_alphanumeric(input_string=request.workspace_id)
@@ -241,7 +261,7 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         clu_json = self.clu_converter.hf_to_clu_process(
             hf_json=hf_json,
             clu_json=clu_json,
-            delimiter=self.config["delimiter"],
+            delimiter=self.format_options.hierarchical_delimiter,
             language=self.language)
 
         self._write_json(
@@ -258,6 +278,10 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         Exports a workspace from the integration, importing it into Studio
         """
 
+        print("ExportWorkspace")
+        print(request)
+        # print(request.language_code)
+
         # Get the current timestamp
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
 
@@ -268,7 +292,7 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
 
         hf_json = self.clu_converter.clu_to_hf_process(
             clu_json=clu_project,
-            delimiter=self.config["delimiter"],
+            delimiter=self.format_options.hierarchical_delimiter,
             language=self.language)
 
         self._write_json(

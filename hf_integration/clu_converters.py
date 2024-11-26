@@ -137,7 +137,7 @@ class clu_to_hf_converter:
     def clu_to_hf_process(
             self,
             clu_json: dict,
-            delimiter: str = "-",
+            delimiter: str,
             language: str = "en-us") -> None:
 
         # TODO: note potential clashes with utf16 and utf8 in future depending on PVA
@@ -299,7 +299,10 @@ class clu_to_hf_converter:
     def clu_to_hf_intent_mapper(self, intent_name: str, hf_workspace: humanfirst.objects.HFWorkspace, delimiter: str) -> None:
         """Builds the parent and child structures for an intent name"""
         # clu doesn't have separate IDs (current understanding)
-        intent_hierarchy = intent_name.split(delimiter)
+        if delimiter != "":
+            intent_hierarchy = intent_name.split(delimiter)
+        else:
+            intent_hierarchy = intent_name
         hf_workspace.intent(intent_hierarchy)
 
     def clu_to_hf_utterance_mapper(self, 
@@ -309,7 +312,12 @@ class clu_to_hf_converter:
                                    delimiter: str) -> None:
         """Builds HF example"""
         fully_qualified_intent_name = str(row["intent"])
-        intent_hierarchy = fully_qualified_intent_name.split(delimiter)
+
+        if delimiter != "":
+            intent_hierarchy = fully_qualified_intent_name.split(delimiter)
+        else:
+            intent_hierarchy = fully_qualified_intent_name
+
         try:
             tag_name = row["dataset"]
             if pandas.isna(tag_name):
@@ -327,8 +335,8 @@ class hf_to_clu_converter:
     def hf_to_clu_process(self,
                         hf_json: dict,
                         clu_json: dict,
+                        delimiter: str,
                         language: str = "en-us",
-                        delimiter: str = "-",
                         skip: bool = False) -> None:
         """Process HF to CLU conversion"""
 
@@ -337,7 +345,11 @@ class hf_to_clu_converter:
         # get a HFWorkspace object to get fully qualified intent names
         # logger.info("delimiter blah blah")
         logger.info(f"Delimiter {delimiter}")
-        hf_workspace = humanfirst.objects.HFWorkspace.from_json(hf_json,delimiter)
+
+        if delimiter != "":
+            hf_workspace = humanfirst.objects.HFWorkspace.from_json(hf_json,delimiter=delimiter)
+        else:
+            hf_workspace = humanfirst.objects.HFWorkspace.from_json(hf_json,delimiter=None)
 
         # get the tag for Test dataset
         test_tag_id = None

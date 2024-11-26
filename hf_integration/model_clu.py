@@ -174,6 +174,11 @@ class ModelServiceCLU(ModelServiceGeneric):
         if self.config["max_batch_size"] <= 0:
             raise RuntimeError(f'Max Batch Size cannot be less than or qual to 0')
 
+        # check for delimiter
+        if "delimiter" in self.config:
+            if self.config["delimiter"] != "":
+                self.format_options.hierarchical_delimiter=self.config["delimiter"]
+
 
     def _flip_dict(self, input_dict, delimiter):
         # Ensure that all values in the original dictionary are unique
@@ -280,7 +285,9 @@ class ModelServiceCLU(ModelServiceGeneric):
                 namespace=request.namespace,
                 integration_id=request.integration_id,
                 data=request.data,
-                workspace_id=project_name
+                workspace_id=project_name,
+                data_format=self.data_format,
+                format_options=self.format_options
             )
 
             hf_file_path = os.path.join(self.snapshot_path, "import", f"{timestamp}_hf_{request.namespace}_{project_name}.json")
@@ -449,10 +456,11 @@ class ModelServiceCLU(ModelServiceGeneric):
             with open(self.handle_map[request.model_id]["hf_file_path"], mode="r", encoding="utf8") as f:
                 hf_json = json.load(f)
 
-            hf_workspace = humanfirst.objects.HFWorkspace.from_json(hf_json, self.config["delimiter"])
+            hf_workspace = humanfirst.objects.HFWorkspace.from_json(hf_json,
+                                                                    self.format_options.hierarchical_delimiter)
             intent_index = self._flip_dict(hf_workspace.get_intent_index(
-                delimiter=self.config["delimiter"]),
-                delimiter=self.config["delimiter"]
+                delimiter=self.format_options.hierarchical_delimiter),
+                delimiter=self.format_options.hierarchical_delimiter
             )
             predictions = []
             predict_results = []
