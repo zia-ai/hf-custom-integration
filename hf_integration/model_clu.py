@@ -32,6 +32,7 @@ from hf_integration.model_generic import ModelServiceGeneric
 
 TRAIN_SPLIT=100
 MAX_BATCH_SIZE=1000
+TRAINING_DELIMITER = "---"
 CLU_SUPPORTED_LANGUAGE_CODES = [
     "af", "am", "ar", "as", "az", "be", "bg", "bn", "br", "bs", "ca", "cs", 
     "cy", "da", "de", "el", "en-us", "en-gb", "eo", "es", "et", "eu", "fa", 
@@ -147,7 +148,6 @@ class ModelServiceCLU(ModelServiceGeneric):
         super().__init__(config)
         self.clu_api = clu_apis(clu_endpoint=self.config["clu_endpoint"],
                                 clu_key=self.config["clu_key"])
-        self.workspace = WorkspaceServiceCLU(config=config)
 
         # Check for language code support
         if self.config["clu_language"] in CLU_SUPPORTED_LANGUAGE_CODES:
@@ -175,10 +175,18 @@ class ModelServiceCLU(ModelServiceGeneric):
             raise RuntimeError(f'Max Batch Size cannot be less than or qual to 0')
 
         # check for delimiter
-        if "delimiter" in self.config:
-            if self.config["delimiter"] != "":
-                self.format_options.hierarchical_delimiter=self.config["delimiter"]
+        if "training_delimiter" in self.config:
+            if self.config["training_delimiter"] != "":
+                self.format_options.hierarchical_delimiter=self.config["training_delimiter"]
+                self.config["workspace_delimiter"] = self.config["training_delimiter"]
+            else:
+                self.format_options.hierarchical_delimiter = TRAINING_DELIMITER
+                self.config["workspace_delimiter"] = TRAINING_DELIMITER
+        else:
+            self.format_options.hierarchical_delimiter = TRAINING_DELIMITER
+            self.config["workspace_delimiter"] = TRAINING_DELIMITER
 
+        self.workspace = WorkspaceServiceCLU(config=config)
 
     def _flip_dict(self, input_dict, delimiter):
         # Ensure that all values in the original dictionary are unique
@@ -187,8 +195,12 @@ class ModelServiceCLU(ModelServiceGeneric):
 
         # Flip the dictionary
         flipped_dict = {}
-        for key, value in input_dict.items():
-            flipped_dict[value] = [key, value.split(delimiter)[-1]]
+        if delimiter != "":
+            for key, value in input_dict.items():
+                flipped_dict[value] = [key, value.split(delimiter)[-1]]
+        else:
+            for key, value in input_dict.items():
+                flipped_dict[value] = [key, value]
         return flipped_dict
 
 

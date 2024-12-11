@@ -148,9 +148,9 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         self.multilingual = self.multilingual = {"True": True, "False": False}[self.config["clu_multilingual"]]
 
         # check for delimiter
-        if "delimiter" in self.config:
-            if self.config["delimiter"] != "":
-                self.format_options.hierarchical_delimiter=self.config["delimiter"]
+        if "workspace_delimiter" in self.config:
+            if self.config["workspace_delimiter"] != "":
+                self.format_options.hierarchical_delimiter=self.config["workspace_delimiter"]
 
 
     def _write_json(self,path: str, data: dict ) -> None:
