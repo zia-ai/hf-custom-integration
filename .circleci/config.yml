@@ -1,0 +1,75 @@
+version: 2.1
+workflows:
+  build:
+    jobs:
+      - build-docker-image:
+          context:
+            - org-global
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+
+
+aliases:
+  - &configure_buildx_context
+    name: Configure remote docker buildx context
+    command: |
+      docker buildx create --name remote-kubernetes --driver remote --driver-opt cacert=/certs/ca.pem,cert=/certs/cert.pem,key=/certs/key.pem tcp://buildkitd-0.buildkitd-headless.circleci.svc.cluster.local:1234
+      docker buildx use remote-kubernetes
+
+  - &gcp_auth
+    name: "Authenticate to Google Cloud"
+    command: |
+      # Snippet from https://discuss.circleci.com/t/walk-through-oidc-to-gcp/44224
+      # Configures application default credentials without requiring gcloud to be installed
+      GCP_OIDC_AUDIENCE="projects/${GOOGLE_PROJECT_ID}/locations/global/workloadIdentityPools/${OIDC_WIP_ID}/providers/${OIDC_WIP_PROVIDER_ID}"
+      GCP_IMPERSONATION_URL="https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${OIDC_SERVICE_ACCOUNT_EMAIL}:generateAccessToken"
+
+      mkdir -p ~/.config/gcloud
+      echo "${CIRCLE_OIDC_TOKEN}" > $HOME/.config/gcloud/oidc_token
+
+      cat >> $HOME/.config/gcloud/application_default_credentials.json \<<- EOF
+      {
+        "type": "external_account",
+        "audience": "//iam.googleapis.com/${GCP_OIDC_AUDIENCE}",
+        "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+        "token_url": "https://sts.googleapis.com/v1/token",
+        "credential_source": {
+          "file": "$HOME/.config/gcloud/oidc_token"
+        },
+        "service_account_impersonation_url": "${GCP_IMPERSONATION_URL}"
+      }
+      EOF
+  - &configure_docker_credential
+    name: Install docker credential helper
+    command: |
+      mkdir -p ~/bin
+      pushd ~/bin
+        curl -L https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v2.1.0/docker-credential-gcr_linux_amd64-2.1.0.tar.gz | tar zxv
+      popd
+      export PATH=$PATH:~/bin
+      mkdir -p $HOME/.config/gcloud/
+      echo ${GOOGLE_AUTH} > $HOME/.config/gcloud/application_default_credentials.json
+      docker-credential-gcr configure-docker
+
+
+jobs:
+  build-docker-image:
+    docker:
+      - image: cimg/base:current-22.04
+    resource_class: zia-ai/small
+    steps:
+      - checkout
+      - run: *configure_buildx_context
+      - run: *gcp_auth
+      - run: *configure_docker_credential
+      - run:
+          name: Build docker image
+          command: |
+            IMAGE_SHA1=$(echo $CIRCLE_SHA1 | cut -c -7)
+            IMAGE_BRANCH=$(echo $CIRCLE_BRANCH | sed -e 's/\//\-/g')
+            IMAGE_TAG="${CIRCLE_TAG:-$IMAGE_BRANCH}"
+            IMAGE_NAME="clu-integration"
+            docker buildx build -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_TAG -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_SHA1 --progress plain --push .

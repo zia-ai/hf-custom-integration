@@ -11,9 +11,10 @@ WORKDIR /src
 # RUN git clone -b <branch_name> --single-branch https://github.com/zia-ai/hf-custom-integration.git .
 
 # Clone from master branch
-RUN git clone https://github.com/zia-ai/hf-custom-integration.git .
+# RUN git clone https://github.com/zia-ai/hf-custom-integration.git .
+COPY . /src
 
 # Generate MTLS credentials from the commands given in the README.md
-COPY ./credentials /src/credentials
+# COPY ./credentials /src/credentials
 
 RUN poetry config virtualenvs.create false && poetry install
