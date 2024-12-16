@@ -216,10 +216,10 @@ sudo docker run -e "CLU_KEY=$CLU_KEY" -e "CLU_ENDPOINT=$CLU_ENDPOINT" -d --name 
 
 sudo docker exec -it clu-custom-connector-0 /bin/bash
 
-poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::-,clu_language::en-us,clu_multilingual::True,clu_training_mode::standard,max_batch_size::500"
+poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,clu_language::en-us,clu_multilingual::True,clu_training_mode::standard,max_batch_size::500"
 
 ### Run the commands while creating the container
-sudo docker run -e "CLU_KEY=$CLU_KEY" -e "CLU_ENDPOINT=$CLU_ENDPOINT" -d --name clu-custom-connector-0 -p 443:443 clu-custom-connector poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::-,clu_language::en-us,clu_multilingual::True,clu_training_mode::standard,max_batch_size::500"
+sudo docker run -e "CLU_KEY=$CLU_KEY" -e "CLU_ENDPOINT=$CLU_ENDPOINT" -d --name clu-custom-connector-0 -p 443:443 clu-custom-connector poetry run poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,clu_language::en-us,clu_multilingual::True,clu_training_mode::standard,max_batch_size::500"
 
 ### Free up the port 443
 sudo kill -9 $(sudo lsof -t -i :443)
