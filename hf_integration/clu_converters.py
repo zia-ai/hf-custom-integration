@@ -188,6 +188,7 @@ class clu_to_hf_converter:
         # make entities
         hf_json["entities"] = []
         simple_entity = {}
+        unsupported_entity_type_list = []
         for clu_entity_object in clu_entities:
 
             assert isinstance(clu_entity_object,dict)
@@ -207,10 +208,14 @@ class clu_to_hf_converter:
                             simple_entity[entity["name"]][value["key_value"]] = []
                             for synonym in value["synonyms"]:
                                 simple_entity[entity["name"]][value["key_value"]].append(synonym["value"])
+                    else:
+                        unsupported_entity_type_list.append(clu_entity_object["category"])
 
             if not known_entity:
-                warnings.warn(f'Unknown entity type keys are: {clu_entity_object.keys()}')
-                continue
+                unsupported_entity_type_list.append(clu_entity_object["category"])
+
+        if unsupported_entity_type_list:
+            raise RuntimeError(f"Unsupported entities in HumanFirst tool - {unsupported_entity_type_list}\nPlease check for learned, prebuilts, or any new entity types. Every entity has to be listed for HumanFirst tool to accept")
         
         error_annotated_text = []
         error_full_text = []
@@ -241,6 +246,7 @@ class clu_to_hf_converter:
                             error_annotated_text.append(synonym)
                             error_full_text.append(utterance_text)
                             error_full_intent_name.append(intent_name)
+                            hf_entity_key = ""
                             # raise RuntimeError(f"'{synonym}' is not present in entity: '{simple_entity[clu_annotation['category']]}'")
 
                         hf_annotation = {
