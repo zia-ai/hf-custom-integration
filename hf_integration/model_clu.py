@@ -32,6 +32,7 @@ from hf_integration.model_generic import ModelServiceGeneric
 
 TRAIN_SPLIT=100
 MAX_BATCH_SIZE=1000
+TRAINING_DELIMITER = "---"
 CLU_SUPPORTED_LANGUAGE_CODES = [
     "af", "am", "ar", "as", "az", "be", "bg", "bn", "br", "bs", "ca", "cs", 
     "cy", "da", "de", "el", "en-us", "en-gb", "eo", "es", "et", "eu", "fa", 
@@ -147,7 +148,6 @@ class ModelServiceCLU(ModelServiceGeneric):
         super().__init__(config)
         self.clu_api = clu_apis(clu_endpoint=self.config["clu_endpoint"],
                                 clu_key=self.config["clu_key"])
-        self.workspace = WorkspaceServiceCLU(config=config)
 
         # Check for language code support
         if self.config["clu_language"] in CLU_SUPPORTED_LANGUAGE_CODES:
@@ -174,6 +174,19 @@ class ModelServiceCLU(ModelServiceGeneric):
         if self.config["max_batch_size"] <= 0:
             raise RuntimeError(f'Max Batch Size cannot be less than or qual to 0')
 
+        # check for delimiter
+        if "training_delimiter" in self.config:
+            if self.config["training_delimiter"] != "":
+                self.format_options.hierarchical_delimiter=self.config["training_delimiter"]
+                self.config["workspace_delimiter"] = self.config["training_delimiter"]
+            else:
+                self.format_options.hierarchical_delimiter = TRAINING_DELIMITER
+                self.config["workspace_delimiter"] = TRAINING_DELIMITER
+        else:
+            self.format_options.hierarchical_delimiter = TRAINING_DELIMITER
+            self.config["workspace_delimiter"] = TRAINING_DELIMITER
+
+        self.workspace = WorkspaceServiceCLU(config=config)
 
     def _flip_dict(self, input_dict, delimiter):
         # Ensure that all values in the original dictionary are unique
@@ -182,8 +195,12 @@ class ModelServiceCLU(ModelServiceGeneric):
 
         # Flip the dictionary
         flipped_dict = {}
-        for key, value in input_dict.items():
-            flipped_dict[value] = [key, value.split(delimiter)[-1]]
+        if delimiter != "":
+            for key, value in input_dict.items():
+                flipped_dict[value] = [key, value.split(delimiter)[-1]]
+        else:
+            for key, value in input_dict.items():
+                flipped_dict[value] = [key, value]
         return flipped_dict
 
 
@@ -280,7 +297,9 @@ class ModelServiceCLU(ModelServiceGeneric):
                 namespace=request.namespace,
                 integration_id=request.integration_id,
                 data=request.data,
-                workspace_id=project_name
+                workspace_id=project_name,
+                data_format=self.data_format,
+                format_options=self.format_options
             )
 
             hf_file_path = os.path.join(self.snapshot_path, "import", f"{timestamp}_hf_{request.namespace}_{project_name}.json")
@@ -449,10 +468,11 @@ class ModelServiceCLU(ModelServiceGeneric):
             with open(self.handle_map[request.model_id]["hf_file_path"], mode="r", encoding="utf8") as f:
                 hf_json = json.load(f)
 
-            hf_workspace = humanfirst.objects.HFWorkspace.from_json(hf_json, self.config["delimiter"])
+            hf_workspace = humanfirst.objects.HFWorkspace.from_json(hf_json,
+                                                                    self.format_options.hierarchical_delimiter)
             intent_index = self._flip_dict(hf_workspace.get_intent_index(
-                delimiter=self.config["delimiter"]),
-                delimiter=self.config["delimiter"]
+                delimiter=self.format_options.hierarchical_delimiter),
+                delimiter=self.format_options.hierarchical_delimiter
             )
             predictions = []
             predict_results = []

@@ -121,30 +121,34 @@ Example command installing CLI-1.35.0
 7. Get the Azure endpoint and API key using https://portal.azure.com/
     Go to resource
     Find Endpoint and keys
-    
-8. Set HumanFirst environment variables
-    ```
-    export HF_USERNAME="<HumanFirst Username>"
-    export HF_PASSWORD="<HumanFirst Password>"
-    ```
-9. Set environment variables for running CLU integration
+8. Set environment variables for running CLU integration
     ```
     export CLU_ENDPOINT="<CLU Endpoint>"
     export CLU_KEY="<CLU API key>"
     ```
 **Note: In case of restarting the instance, ensure to run the follwoing command again - `sudo sysctl -w net.ipv4.ip_unprivileged_port_start=443`**
 
-10. Launch the integration service:
+9. Launch the integration service:
     ```
     poetry run python3 -m hf_integration.main ./credentials/mtls-credentials.json 0.0.0.0:443 <integration-generic,clu,example> "<config - key1::value1,key2::value2,..,keyN::valueN>"
     ```
 
     Example:
     ```
-    poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::-,project_path::/home/FayazJelani/hf-custom-integration,clu_language::ja,clu_multilingual::True,clu_training_mode::advanced,log_level::debug"
+    poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,clu_language::en-us,clu_multilingual::True,clu_training_mode::standard,max_batch_size::500,training_delimiter::---"
+
+    CLU config params:
+    clu_endpoint
+    clu_key
+    training_delimiter
+    workspace_delimiter
+    clu_language
+    clu_multilingual
+    clu_training_mode
+    max_batch_size
     ```
 
-11. IF the IP address of the integration server changes, then use the following command to set the IP address of the integration server in the HF
+10. IF the IP address of the integration server changes, then use the following command to set the IP address of the integration server in the HF
 `hf integrations --id intg-id-here set-address -a <Public IP Address>:443`
 
 ## Docker
@@ -208,14 +212,14 @@ Follow the steps here - https://www.notion.so/humanfirst/Custom-NLU-d4bb84f08676
 
 ### Create, attach and run the commands manually
 ```
-sudo docker run -e "CLU_KEY=$CLU_KEY" -e "CLU_ENDPOINT=$CLU_ENDPOINT" -e "HF_USERNAME=$HF_USERNAME" -e "HF_PASSWORD=$HF_PASSWORD" -d --name clu-custom-connector-0 -p 443:443 clu-custom-connector tail -f /dev/null
+sudo docker run -e "CLU_KEY=$CLU_KEY" -e "CLU_ENDPOINT=$CLU_ENDPOINT" -d --name clu-custom-connector-0 -p 443:443 clu-custom-connector tail -f /dev/null
 
 sudo docker exec -it clu-custom-connector-0 /bin/bash
 
-poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::-,clu_language::en-us,clu_multilingual::True,clu_training_mode::standard,max_batch_size::500"
+poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,clu_language::en-us,clu_multilingual::True,clu_training_mode::standard,max_batch_size::500"
 
 ### Run the commands while creating the container
-sudo docker run -e "CLU_KEY=$CLU_KEY" -e "CLU_ENDPOINT=$CLU_ENDPOINT" -e "HF_USERNAME=$HF_USERNAME" -e "HF_PASSWORD=$HF_PASSWORD" -d --name clu-custom-connector-0 -p 443:443 clu-custom-connector poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,delimiter::-,clu_language::en-us,clu_multilingual::True,clu_training_mode::standard,max_batch_size::500"
+sudo docker run -e "CLU_KEY=$CLU_KEY" -e "CLU_ENDPOINT=$CLU_ENDPOINT" -d --name clu-custom-connector-0 -p 443:443 clu-custom-connector poetry run poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,clu_language::en-us,clu_multilingual::True,clu_training_mode::standard,max_batch_size::500"
 
 ### Free up the port 443
 sudo kill -9 $(sudo lsof -t -i :443)
