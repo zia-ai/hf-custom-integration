@@ -16,7 +16,7 @@ import click
 import hf_integration.clu_converters
 
 @click.command()
-@click.option('-f', '--filename', type=str, required=True, help='Input JSON')
+@click.option('-f', '--filename', type=str, required=True, help='Input CLU JSON')
 def main(filename: str) -> None: # pylint: disable=unused-argument
     """Main Function"""
     
