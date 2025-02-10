@@ -14,6 +14,7 @@ import logging.config
 import os
 from datetime import datetime
 import sys
+import json
 
 # 3rd party imports
 import pandas
@@ -192,30 +193,44 @@ class clu_to_hf_converter:
         for clu_entity_object in clu_entities:
 
             assert isinstance(clu_entity_object,dict)
-            known_entity_key_types = ["prebuilts","list","requiredComponents"]
-            script_supported_types = ["list"]
 
-            # check type and skip if unknown
-            known_entity = False
-            for entity_type in known_entity_key_types:
-                if entity_type in clu_entity_object:
-                    known_entity = True
-                    if entity_type in script_supported_types:
-                        entity = self.clu_to_hf_entity_mapper(clu_entity_object,language=language)
-                        hf_json["entities"].append(entity)
-                        simple_entity[entity["name"]] = {}
-                        for value in entity["values"]:
-                            simple_entity[entity["name"]][value["key_value"]] = []
-                            for synonym in value["synonyms"]:
-                                simple_entity[entity["name"]][value["key_value"]].append(synonym["value"])
-                    else:
-                        unsupported_entity_type_list.append(clu_entity_object["category"])
+            # is it a regex?
+            if "regex" in clu_entity_object:
+                # make a check here that there is no list type
+                entity = self.clu_to_hf_regex_entity_mapper(clu_entity_object,language=language)
+                hf_json["entities"].append(entity)
+            
+            # is it prebuilt
+            elif "prebuilts" in clu_entity_object:
+                logger.warning("Prebuilt not supported")
+                continue
+            
+            # is it a list
+            elif "list" in clu_entity_object:
+                entity = self.clu_to_hf_list_entity_mapper(clu_entity_object,language=language)
+                hf_json["entities"].append(entity)
+                
+                # this bit is creating a simple lookup so it can check for annotation later
+                simple_entity[entity["name"]] = {}
+                for value in entity["values"]:
+                    simple_entity[entity["name"]][value["key_value"]] = []
+                    for synonym in value["synonyms"]:
+                        simple_entity[entity["name"]][value["key_value"]].append(synonym["value"])
+            
+            # is it learned
+            elif "learned" in clu_entity_object:
+                logger.warning("Prebuilt not supported")
+                continue
+            
+            # is it a one word entity - convert it to list
+            elif len(clu_entity_object.keys()) and "category" in clu_entity_object and "compositionSetting" in clu_entity_object:
+                entity = self.clu_to_hf_one_word_entity_mapper(clu_entity_object,language=language)
+                hf_json["entities"].append(entity)
+                
+            else:
+                logger.warning("None of the expected entity types encountered")
+                logger.warning(clu_entity_object)
 
-            if not known_entity:
-                unsupported_entity_type_list.append(clu_entity_object["category"])
-
-        if unsupported_entity_type_list:
-            raise RuntimeError(f"Unsupported entities in HumanFirst tool - {unsupported_entity_type_list}\nPlease check for learned, prebuilts, or any new entity types. Every entity has to be listed for HumanFirst tool to accept")
         
         error_annotated_text = []
         error_full_text = []
@@ -265,39 +280,52 @@ class clu_to_hf_converter:
         return hf_json
 
 
-    def clu_to_hf_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
-        """Builds a HF entity object for any clu lists"""
-
-        # hf_entity using name to generate hash id
-        isonow = datetime.now().isoformat()
-        hf_entity =  {
-            "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
-            "name": clu_entity_object["category"],
-            "values": [],
-            "created_at": isonow,
-            "updated_at": isonow
-        }
-
-        # add key values
-        for clu_sublist_object in clu_entity_object["list"]["sublists"]:
-            hf_key_value_object = {
-                "id": humanfirst.objects.hash_string(clu_sublist_object["listKey"],"entval"),
-                "key_value": clu_sublist_object["listKey"],
-                "synonyms": []
+    def clu_to_hf_list_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
+        """Builds a HF entity object for any clu lists
+        If starts with @ puts prefix in metadata"""
+        
+        try:
+            # hf_entity using name to generate hash id
+            isonow = datetime.now().isoformat()
+            hf_entity =  {
+                "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
+                "name": clu_entity_object["category"],
+                "values": [],
+                "created_at": isonow,
+                "updated_at": isonow
             }
-            # add synonyms
-            for clu_synonyms_object in clu_sublist_object["synonyms"]:
-                found_language = False
-                if clu_synonyms_object["language"] == language:
-                    found_language = True
-                    for clu_synonym in clu_synonyms_object["values"]:
-                        hf_synonym = {
-                            "value": clu_synonym
-                        }
-                        hf_key_value_object["synonyms"].append(copy.deepcopy(hf_synonym))
-                if not found_language:
-                    raise RuntimeError(f'Could not find language synonyms for {language}')
-                hf_entity["values"].append(copy.deepcopy(hf_key_value_object))
+            
+            # check for @ at start and shunt it to metdata
+            if str(hf_entity["name"]).startswith("@"):
+                hf_entity["metadata"] = {
+                    "prefix": "@"
+                }
+                hf_entity["name"] = hf_entity["name"][1:]
+
+            # add key values
+            for clu_sublist_object in clu_entity_object["list"]["sublists"]:
+                hf_key_value_object = {
+                    "id": humanfirst.objects.hash_string(clu_sublist_object["listKey"],"entval"),
+                    "key_value": clu_sublist_object["listKey"],
+                    "synonyms": []
+                }
+                # add synonyms
+                for clu_synonyms_object in clu_sublist_object["synonyms"]:
+                    found_language = False
+                    if clu_synonyms_object["language"] == language:
+                        found_language = True
+                        for clu_synonym in clu_synonyms_object["values"]:
+                            hf_synonym = {
+                                "value": clu_synonym
+                            }
+                            hf_key_value_object["synonyms"].append(copy.deepcopy(hf_synonym))
+                    if not found_language:
+                        raise RuntimeError(f'Could not find language synonyms for {language}')
+                    hf_entity["values"].append(copy.deepcopy(hf_key_value_object))
+        except Exception as e:
+            print(json.dumps(clu_entity_object,indent=2))
+            raise
+            # Need some sort of debug here
 
         return copy.deepcopy(hf_entity)
 
@@ -336,6 +364,98 @@ class clu_to_hf_converter:
             created_at=created_at,
             tags=[{"id": hf_workspace.tag(tag_name).id }]
         )
+
+    def clu_to_hf_one_word_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
+        """Builds a HF entity object list object out of entities in
+        CLU with just a name value.
+        
+        If starts with @ puts prefix in metadata"""
+        
+        try:
+            # hf_entity using name to generate hash id
+            isonow = datetime.now().isoformat()
+            hf_entity =  {
+                "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
+                "name": clu_entity_object["category"],
+                "values": [
+                    {
+                        "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entval"),
+                        "key_value": clu_entity_object["category"],
+                        "synonyms": [
+                            {
+                                "value": clu_entity_object["category"]
+                            }
+                        ]
+                    }
+                ],
+                "created_at": isonow,
+                "updated_at": isonow
+            }
+            
+            # check for @ at start and shunt it to metdata
+            if str(hf_entity["name"]).startswith("@"):
+                hf_entity["metadata"] = {
+                    "prefix": "@"
+                }
+                hf_entity["name"] = hf_entity["name"][1:]
+
+        except Exception as e:
+            print(json.dumps(clu_entity_object,indent=2))
+            raise
+            # Need some sort of debug here
+
+        return copy.deepcopy(hf_entity)
+
+        
+    def clu_to_hf_regex_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
+        """Builds a HF regex object from a CLU regex entity
+        If starts with @ puts prefix in metadata"""
+        
+        try:            
+            # hf_entity skeleton regex using name to generate hash id
+            isonow = datetime.now().isoformat()
+            hf_entity =  {
+                "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
+                "name": clu_entity_object["category"],
+                "values": [],
+                "is_regex": True,
+                "settings": {},
+                "created_at": isonow,
+                "updated_at": isonow
+            }
+            
+            # check for @ at start and shunt it to metdata
+            if str(hf_entity["name"]).startswith("@"):
+                hf_entity["metadata"] = {
+                    "prefix": "@"
+                }
+                hf_entity["name"] = hf_entity["name"][1:]
+            
+            # go through each CLU expression and create a humanfirst value object for it.
+            # language is not preserved - assumed to come back in on reconversion
+            values = []
+            for expression in clu_entity_object["regex"]["expressions"]:
+                hf_value_object = {
+                    "id": humanfirst.objects.hash_string(expression["regexKey"],"entval"),
+                    "key_value": expression["regexKey"],
+                    "synonyms": [
+                        {
+                            "value": expression["regexPattern"]
+                        }
+                    ]
+                }
+                values.append(hf_value_object)
+                
+            hf_entity["values"] = values
+            
+        except Exception as e:
+            print(json.dumps(clu_entity_object,indent=2))
+            raise
+            # Need some sort of debug here
+
+        return copy.deepcopy(hf_entity)
+
+
 
 class hf_to_clu_converter:
     def hf_to_clu_process(self,
@@ -435,6 +555,8 @@ class hf_to_clu_converter:
                 "sublists": []
             }
         }
+        
+        # TODO: need to reverse @ prefixing 
 
         # fill list with key values
         for hf_key_value_object in hf_entity["values"]:
