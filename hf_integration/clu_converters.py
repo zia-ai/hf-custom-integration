@@ -27,6 +27,17 @@ import humanfirst
 TRAIN="Train"
 TEST="Test"
 
+# Sys entity mappers 
+SYSTEM_ENTITY_MAPPER = {
+    "DateTime": "SYS_DATE_TIME",
+    "Quantity.Number": "SYS_NUMBER"
+}
+SYSTEM_ENTITY_REVERSER = {
+    "SYS_DATE_TIME":"DateTime",
+    "SYS_NUMBER":"Quantity.Number"
+}
+
+
 # locate where we are
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -133,6 +144,18 @@ def reverse_utf8span(s: str, byte_index: int) -> int:
     truncated_encoded = encoded[:byte_index]
     return len(truncated_encoded.decode('utf-8', errors='ignore'))
 
+def at_replacer(hf_entity_object: dict) -> dict:
+    """Replaces @ in the name with AT__"""
+    if str(hf_entity_object["name"]).startswith("@"):
+        hf_entity_object["name"] = str(hf_entity_object["name"]).replace("@","AT__")
+    return hf_entity_object
+        
+def at_reverser(hf_entity_object: dict) -> dict:
+    """Replaces AT__ in the name with @"""
+    if str(hf_entity_object["name"]).startswith("AT__"):
+        hf_entity_object["name"] = str(hf_entity_object["name"]).replace("AT__","@")
+    return hf_entity_object
+
 
 class clu_to_hf_converter:
     def clu_to_hf_process(
@@ -189,7 +212,7 @@ class clu_to_hf_converter:
         # make entities
         hf_json["entities"] = []
         simple_entity = {}
-        unsupported_entity_type_list = []
+        entity = {}
         for clu_entity_object in clu_entities:
 
             assert isinstance(clu_entity_object,dict)
@@ -198,17 +221,14 @@ class clu_to_hf_converter:
             if "regex" in clu_entity_object:
                 # make a check here that there is no list type
                 entity = self.clu_to_hf_regex_entity_mapper(clu_entity_object,language=language)
-                hf_json["entities"].append(entity)
             
             # is it prebuilt
             elif "prebuilts" in clu_entity_object:
-                logger.warning("Prebuilt not supported")
-                continue
-            
+                entity = self.clu_to_hf_prebuilt_entity_mapper(clu_entity_object,language=language)
+        
             # is it a list
             elif "list" in clu_entity_object:
                 entity = self.clu_to_hf_list_entity_mapper(clu_entity_object,language=language)
-                hf_json["entities"].append(entity)
                 
                 # this bit is creating a simple lookup so it can check for annotation later
                 simple_entity[entity["name"]] = {}
@@ -225,11 +245,14 @@ class clu_to_hf_converter:
             # is it a one word entity - convert it to list
             elif len(clu_entity_object.keys()) and "category" in clu_entity_object and "compositionSetting" in clu_entity_object:
                 entity = self.clu_to_hf_one_word_entity_mapper(clu_entity_object,language=language)
-                hf_json["entities"].append(entity)
                 
             else:
                 logger.warning("None of the expected entity types encountered")
                 logger.warning(clu_entity_object)
+                continue
+            
+            # add it to the json    
+            hf_json["entities"].append(entity)
 
         
         error_annotated_text = []
@@ -281,8 +304,7 @@ class clu_to_hf_converter:
 
 
     def clu_to_hf_list_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
-        """Builds a HF entity object for any clu lists
-        If starts with @ puts prefix in metadata"""
+        """Builds a HF entity object for any clu lists"""
         
         try:
             # hf_entity using name to generate hash id
@@ -295,12 +317,8 @@ class clu_to_hf_converter:
                 "updated_at": isonow
             }
             
-            # check for @ at start and shunt it to metdata
-            if str(hf_entity["name"]).startswith("@"):
-                hf_entity["metadata"] = {
-                    "prefix": "@"
-                }
-                hf_entity["name"] = hf_entity["name"][1:]
+            # replace @
+            hf_entity = at_replacer(hf_entity)
 
             # add key values
             for clu_sublist_object in clu_entity_object["list"]["sublists"]:
@@ -367,9 +385,7 @@ class clu_to_hf_converter:
 
     def clu_to_hf_one_word_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
         """Builds a HF entity object list object out of entities in
-        CLU with just a name value.
-        
-        If starts with @ puts prefix in metadata"""
+        CLU with just a name value."""
         
         try:
             # hf_entity using name to generate hash id
@@ -392,13 +408,80 @@ class clu_to_hf_converter:
                 "updated_at": isonow
             }
             
-            # check for @ at start and shunt it to metdata
-            if str(hf_entity["name"]).startswith("@"):
-                hf_entity["metadata"] = {
-                    "prefix": "@"
-                }
-                hf_entity["name"] = hf_entity["name"][1:]
+            # replace @
+            hf_entity = at_replacer(hf_entity)
 
+        except Exception as e:
+            print(json.dumps(clu_entity_object,indent=2))
+            raise
+            # Need some sort of debug here
+
+        return copy.deepcopy(hf_entity)
+
+    def clu_to_hf_prebuilt_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
+        """Builds a HF system object from a CLU prebuilt entity
+        for a limited number of DF compatible types
+        Currently only Datetime and Quantity.Number supported"""
+
+        # These are the 2025-02-10 types of system entities humanfirst supports creating.
+        # based on dialog flow with the assumed CLU types next to in brackets
+        # sys.date
+        # sys.date-time (Datetime)
+        # sys.email
+        # sys.number (Quantity.Number)
+        # sys.phone-number
+        # sys.time
+        # sys.url
+        # sys.zip-code
+        
+        # This is the CLU page
+        # https://learn.microsoft.com/en-us/azure/ai-services/language-service/conversational-language-understanding/prebuilt-component-reference
+
+        # Format - will hide the name in the id for returning to CLU             
+        # {
+        #     "id": "entity-HXTCKVLE45HKHEV3Z7IALSUL",
+        #     "name": "sys.date-time",
+        #     "system_type": "SYS_DATE_TIME",
+        #     "settings": {},
+        #     "created_at": "2025-02-10T15:41:06Z",
+        #     "updated_at": "2025-02-10T15:41:06Z"
+        # },
+        # {
+        #     "id": "entity-EU565KK7IRBPJCKNOEX4XMDE",
+        #     "name": "sys.number",
+        #     "system_type": "SYS_NUMBER",
+        #     "settings": {},
+        #     "created_at": "2025-02-10T15:41:37Z",
+        #     "updated_at": "2025-02-10T15:41:37Z"
+        # }
+        
+        # CLU FORMAT
+        #  {
+        #         "category": "builtin.number",
+        #         "compositionSetting": "combineComponents",
+        #         "prebuilts": [
+        #             {
+        #                 "category": "Quantity.Number"
+        #             }
+        #         ]
+        #     },
+
+           
+        try:
+            # hf_entity skeleton regex using name to generate hash id
+            isonow = datetime.now().isoformat()
+            hf_entity =  {
+                "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
+                "name": clu_entity_object["category"],
+                "system_type":SYSTEM_ENTITY_MAPPER[clu_entity_object["prebuilts"][0]["category"]],
+                "settings": {},
+                "created_at": isonow,
+                "updated_at": isonow
+            }
+            
+            # replace @
+            hf_entity = at_replacer(hf_entity)           
+            
         except Exception as e:
             print(json.dumps(clu_entity_object,indent=2))
             raise
@@ -408,8 +491,7 @@ class clu_to_hf_converter:
 
         
     def clu_to_hf_regex_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
-        """Builds a HF regex object from a CLU regex entity
-        If starts with @ puts prefix in metadata"""
+        """Builds a HF regex object from a CLU regex entity"""
         
         try:            
             # hf_entity skeleton regex using name to generate hash id
@@ -424,20 +506,16 @@ class clu_to_hf_converter:
                 "updated_at": isonow
             }
             
-            # check for @ at start and shunt it to metdata
-            if str(hf_entity["name"]).startswith("@"):
-                hf_entity["metadata"] = {
-                    "prefix": "@"
-                }
-                hf_entity["name"] = hf_entity["name"][1:]
+            # replace @
+            hf_entity = at_replacer(hf_entity)
             
             # go through each CLU expression and create a humanfirst value object for it.
             # language is not preserved - assumed to come back in on reconversion
             values = []
             for expression in clu_entity_object["regex"]["expressions"]:
                 hf_value_object = {
-                    "id": humanfirst.objects.hash_string(expression["regexKey"],"entval"),
-                    "key_value": expression["regexKey"],
+                    "id": f'entval-{expression["regexKey"]}',
+                    "key_value": expression["regexPattern"],
                     "synonyms": [
                         {
                             "value": expression["regexPattern"]
@@ -445,7 +523,6 @@ class clu_to_hf_converter:
                     ]
                 }
                 values.append(hf_value_object)
-                
             hf_entity["values"] = values
             
         except Exception as e:
