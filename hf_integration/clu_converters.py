@@ -211,7 +211,6 @@ class clu_to_hf_converter:
 
         # make entities
         hf_json["entities"] = []
-        simple_entity = {}
         entity = {}
         for clu_entity_object in clu_entities:
 
@@ -219,6 +218,9 @@ class clu_to_hf_converter:
 
             # is it a regex?
             if "regex" in clu_entity_object:
+                if "list" in clu_entity_object:
+                    logger.warning("Both regex and list in entity - this cannot be supported")
+                    logger.warning(clu_entity_object)
                 # make a check here that there is no list type
                 entity = self.clu_to_hf_regex_entity_mapper(clu_entity_object,language=language)
             
@@ -229,21 +231,14 @@ class clu_to_hf_converter:
             # is it a list
             elif "list" in clu_entity_object:
                 entity = self.clu_to_hf_list_entity_mapper(clu_entity_object,language=language)
-                
-                # this bit is creating a simple lookup so it can check for annotation later
-                simple_entity[entity["name"]] = {}
-                for value in entity["values"]:
-                    simple_entity[entity["name"]][value["key_value"]] = []
-                    for synonym in value["synonyms"]:
-                        simple_entity[entity["name"]][value["key_value"]].append(synonym["value"])
-            
+                           
             # is it learned
-            elif "learned" in clu_entity_object:
-                logger.warning("Prebuilt not supported")
+            elif "requiredComponents" in clu_entity_object and "learned" in clu_entity_object["requiredComponents"]:
+                logger.debug("Learned will be built later")
                 continue
             
             # is it a one word entity - convert it to list
-            elif len(clu_entity_object.keys()) and "category" in clu_entity_object and "compositionSetting" in clu_entity_object:
+            elif len(clu_entity_object.keys()) == 2 and "category" in clu_entity_object and "compositionSetting" in clu_entity_object:
                 entity = self.clu_to_hf_one_word_entity_mapper(clu_entity_object,language=language)
                 
             else:
@@ -255,38 +250,34 @@ class clu_to_hf_converter:
             hf_json["entities"].append(entity)
 
         
+        # Entity annotation section
         error_annotated_text = []
         error_full_text = []
         error_full_intent_name = []
+        
+        # For every utterance in the inbound CLU file
         for i,_ in enumerate(clu_json["assets"]["utterances"]):
+            # see if it has entities annotating the utterance
             if "entities" in clu_json["assets"]["utterances"][i]:
+                # if it does and it's not blank
                 if clu_json["assets"]["utterances"][i]["entities"] != []:
+                    # Fill out the entities
                     hf_json["examples"][i]["entities"] = []
+                    # For each CLU annotation build the HF annotation
                     for clu_annotation in clu_json["assets"]["utterances"][i]["entities"]:
+                        
+                        # Work out based on the offset and length the span and synonym
                         start_char_index = clu_annotation["offset"]
                         end_char_index = clu_annotation["offset"] + clu_annotation["length"]
                         start_byte_index = utf8span(clu_json["assets"]["utterances"][i]["text"], start_char_index)
                         end_byte_index = utf8span(clu_json["assets"]["utterances"][i]["text"], end_char_index)
                         synonym = clu_json["assets"]["utterances"][i]["text"][start_char_index:end_char_index]
-                        utterance_text = clu_json["assets"]["utterances"][i]["text"]
-                        intent_name = clu_json["assets"]["utterances"][i]["intent"]
-                        for entity_key_value,entity_synonyms in simple_entity[clu_annotation["category"]].items():
-                            # HF tool allows case insensitive match
-                            if synonym.lower() == entity_key_value.lower():
-                                hf_entity_key = entity_key_value
-                                break
-                            for j,_ in enumerate(entity_synonyms):
-                                entity_synonyms[j] = entity_synonyms[j].lower()
-                            if synonym.lower() in entity_synonyms:
-                                hf_entity_key = entity_key_value
-                                break
-                        else:
-                            error_annotated_text.append(synonym)
-                            error_full_text.append(utterance_text)
-                            error_full_intent_name.append(intent_name)
-                            hf_entity_key = ""
-                            # raise RuntimeError(f"'{synonym}' is not present in entity: '{simple_entity[clu_annotation['category']]}'")
-
+                                               
+                        # Check here we have the entity keys and values created in humanfirst by a list entity
+                        # if not create it
+                        hf_json["entities"] = self.check_and_update_list_entity(hf_json["entities"],clu_annotation["category"],synonym,language)
+                        
+                        
                         hf_annotation = {
                             "name": clu_annotation["category"],
                             "text": synonym,
@@ -294,7 +285,7 @@ class clu_to_hf_converter:
                                 "from_character": start_byte_index,
                                 "to_character": end_byte_index
                             },
-                            "value": hf_entity_key
+                            "value": self.find_key_value_for_synonym(hf_json["entities"],clu_annotation["category"],synonym)
                         }
 
                         hf_json["examples"][i]["entities"].append(hf_annotation)
@@ -302,6 +293,90 @@ class clu_to_hf_converter:
             raise RuntimeError(f"Error annotatations: {error_annotated_text}\nIn corresponding utterance list : {error_full_text}\nIn corresponding intent list {error_full_intent_name}\nDon't exists in any entities")
         return hf_json
 
+    def check_and_update_list_entity(self, hf_entities: list, category: str, synonym: str, language: str) -> dict:
+        """Checks if a clu entity category exists in the hf_entities
+        If it doesn't it creates it.
+        Then checks if the annotation"""
+        
+        isonow = datetime.now().isoformat()
+        
+        # Search to see if the matching list entity exists.
+        found_entity_index = None
+        i=0
+        for hf_entity in hf_entities:
+            if hf_entity["name"] == category:
+                found_entity_index = i
+                break
+            i = i + 1
+        
+        # create it if it doesnt and return 
+        if found_entity_index is None: 
+            hf_entity = {
+                "id": humanfirst.objects.hash_string(category,"entity"),
+                "name": category,
+                "values": [
+                    {
+                        "id": humanfirst.objects.hash_string(synonym,"entval"),
+                        "key_value": "learned_annotation",
+                        "synonyms": [
+                            {
+                                "value": synonym
+                            }
+                        ]
+                    }
+                ],
+                "created_at": isonow,
+                "updated_at": isonow
+            }
+            hf_entities.append(hf_entity)
+            logger.debug(f"Created entity {category} as a list with key_value: learned_annotation with synonym {synonym}")
+            return hf_entities
+
+        # otherwise it must have been found and we have the index
+        # check if the synonym is in the entity and return if it is 
+        for hf_value in hf_entities[found_entity_index]["values"]:
+            for hf_synonym in hf_value["synonyms"]:
+                if hf_synonym["value"] == synonym:
+                    logger.debug(f'Synonym: {synonym} already exists within key_value: {hf_value["key_value"]} for entity {category}')
+                    return hf_entities
+        
+        # otherwise we check whether we already have learned_annotation to add to
+        for hf_value in hf_entities[found_entity_index]["values"]:
+            if hf_value["key_value"] == "learned_annotation":
+                hf_value["synonyms"].append({
+                    "value": synonym
+                })
+                logger.debug(f"Synonym: {synonym} added to key_value: learned_entities for entity {category}")
+                return hf_entities
+        
+        # otherwise we need to create a new learned_annotation
+        hf_value = {
+            "id": humanfirst.objects.hash_string(synonym,"entval"),
+            "key_value": "learned_annotation",
+            "synonyms": [
+                {
+                    "value": synonym
+                }
+            ]
+        }
+        hf_entities[found_entity_index]["values"].append(hf_value)
+        logger.debug(f"Synonym: {synonym} added to created key_value: learned_entities for entity {category}")
+        return hf_entities
+    
+    
+    def find_key_value_for_synonym(self, hf_entities: dict, category: str, synonym: str) -> str:
+        """Finds the key_value for a synonym in a list of entities and returns
+        an empty string if it can't find it."""
+        
+        # Search to see if the matching list entity exists.
+        for hf_entity in hf_entities:
+            if hf_entity["name"] == category:
+                for hf_value in hf_entity["values"]:
+                    for hf_synonym in hf_value["synonyms"]:
+                        if hf_synonym["value"] == synonym:
+                            return hf_value["key_value"]
+        return ""
+                
 
     def clu_to_hf_list_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
         """Builds a HF entity object for any clu lists"""
