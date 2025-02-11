@@ -215,11 +215,6 @@ class clu_to_hf_converter:
         entity = {}
         for clu_entity_object in clu_entities:
 
-            # if not clu_entity_object["category"] == "@SCHADE_eigenaar_schadeobject":
-            #     continue
-            # else:
-            #     print("FOUND")
-
             assert isinstance(clu_entity_object,dict)
 
             # is it a regex?
@@ -271,10 +266,7 @@ class clu_to_hf_converter:
                     hf_json["examples"][i]["entities"] = []
                     # For each CLU annotation build the HF annotation
                     for clu_annotation in clu_json["assets"]["utterances"][i]["entities"]:
-                        
-                        # if not clu_annotation["category"] == "@SCHADE_eigenaar_schadeobject":
-                        #     continue
-                        
+                                                
                         # Work out based on the offset and length the span and synonym
                         start_char_index = clu_annotation["offset"]
                         end_char_index = clu_annotation["offset"] + clu_annotation["length"]
@@ -924,7 +916,6 @@ class hf_to_clu_converter:
             if isinstance(row["tags"],list):
                 for tag in row["tags"]:
                     if tag["id"] == test_tag_id:
-                        # logger.info("Found")
                         dataset = TEST
                         break
             elif pandas.isna(row["tags"]):
