@@ -5,6 +5,8 @@ Convert CLU JSON into HF and  HF to CLU JSON
 
 """
 # *********************************************************************************************************************
+# TODO: standardise if and when deepcopy required
+# on the return - on the call - not both
 
 # standard imports
 import datetime
@@ -13,7 +15,6 @@ import copy
 import logging.config
 import os
 from datetime import datetime
-import sys
 import json
 
 # 3rd party imports
@@ -572,7 +573,7 @@ class clu_to_hf_converter:
 
         return copy.deepcopy(hf_entity)
 
-        
+
     def clu_to_hf_regex_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
         """Builds a HF regex object from a CLU regex entity"""
         
@@ -615,7 +616,48 @@ class clu_to_hf_converter:
 
         return copy.deepcopy(hf_entity)
 
+        
+    def clu_to_hf_regex_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
+        """Builds a HF regex object from a CLU regex entity"""
+        
+        try:            
+            # hf_entity skeleton regex using name to generate hash id
+            isonow = datetime.now().isoformat()
+            hf_entity =  {
+                "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
+                "name": clu_entity_object["category"],
+                "values": [],
+                "is_regex": True,
+                "settings": {},
+                "created_at": isonow,
+                "updated_at": isonow
+            }
+            
+            # replace @
+            hf_entity = at_replacer(hf_entity)
+            
+            # go through each CLU expression and create a humanfirst value object for it.
+            # language is not preserved - assumed to come back in on reconversion
+            values = []
+            for expression in clu_entity_object["regex"]["expressions"]:
+                hf_value_object = {
+                    "id": f'entval-{expression["regexKey"]}',
+                    "key_value": expression["regexPattern"],
+                    "synonyms": [
+                        {
+                            "value": expression["regexPattern"]
+                        }
+                    ]
+                }
+                values.append(hf_value_object)
+            hf_entity["values"] = values
+            
+        except Exception as e:
+            print(json.dumps(clu_entity_object,indent=2))
+            raise
+            # Need some sort of debug here
 
+        return copy.deepcopy(hf_entity)
 
 class hf_to_clu_converter:
     def hf_to_clu_process(self,
@@ -660,13 +702,11 @@ class hf_to_clu_converter:
                 
                 # check if regex
                 if "is_regex" in hf_entity:
-                    logger.warning("IsRegex")                
+                    clu_json["assets"]["entities"].append(self.hf_to_clu_regex_entity_mapper(hf_entity,language))             
                 # check if system
                 elif "system_type" in hf_entity:
-                    if hf_entity["system_type"] == "SYS_DATE_TIME":
-                        logger.warning("SystemType: SYS_DATE_TIME")
-                    elif hf_entity["system_type"] == "SYS_NUMBER":
-                        logger.warning("SystemType: SYS_NUMBER")
+                    if hf_entity["system_type"] in ["SYS_DATE_TIME","SYS_NUMBER"]:
+                        clu_json["assets"]["entities"].append(self.hf_to_clu_prebuilt_entity_mapper(hf_entity,language))             
                     else:
                         logger.warning("SystemType not supported")    
                 # else we are going to assume list (learned) will come from annotations
@@ -687,7 +727,6 @@ class hf_to_clu_converter:
         
         # go through and update all the clu_entities with requiredComponent = ['learned']
         # where they have any annotations
-        
         # find every utterance
         for clu_utterance in clu_json["assets"]["utterances"]:
             # where it has entity annotations find each one
@@ -727,8 +766,95 @@ class hf_to_clu_converter:
             "category": intent_name
         }
 
+    def hf_to_clu_prebuilt_entity_mapper(self, hf_entity: dict, language: str) -> dict:
+        """converts hf system entity format to clu prebuilt entity format"""
+        # {
+        #     "category": "builtin.number",
+        #     "compositionSetting": "combineComponents",
+        #     "prebuilts": [
+        #         {
+        #             "category": "Quantity.Number"
+        #         }
+        #     ]
+        # },
+
+        try:
+            # build entity object
+            clu_entity_object = {
+                "category": hf_entity["name"],
+                "compositionSetting": "combineComponents",
+                "prebuilts": [
+                    {
+                        "category": SYSTEM_ENTITY_REVERSER[hf_entity["system_type"]]
+                    }
+                    
+                ]
+            }
+            
+            # put back @
+            clu_entity_object = at_reverser(clu_entity_object)
+
+        except Exception as e:
+            print(json.dumps(hf_entity,indent=2))
+            raise
+            # Need some sort of debug here  
+
+        # return copy of entity
+        return copy.deepcopy(clu_entity_object)
+
+    def hf_to_clu_regex_entity_mapper(self, hf_entity: dict, language: str) -> dict:
+        """converts hf regex entity format to clu regex entity format"""
+        # {
+        #     "category": "telefoonnummer",
+        #     "compositionSetting": "combineComponents",
+        #     "regex": {
+        #         "expressions": [
+        #             {
+        #                 "regexKey": "tel_mobiel_vast",
+        #                 "language": "nl",
+        #                 "regexPattern": "\\b(0[1-9][0-9]{1,2})[ -]?[0-9]{3}[ -]?[0-9]{4}|(06)[ -]?[0-9]{2}[ -]?[0-9]{3}[ -]?[0-9]{3}\\b"
+        #             },
+        #             {
+        #                 "regexKey": "mobiel",
+        #                 "language": "nl",
+        #                 "regexPattern": "\\b(((\\\\+31|0|0031)6){1}[1-9]{1}[0-9]{7})\\b"
+        #             },
+        #         ]
+        #     }
+        # },
+
+        try:
+            # build entity object
+            clu_entity_object = {
+                "category": hf_entity["name"],
+                "compositionSetting": "combineComponents",
+                "regex": {
+                    "expressions": []
+                }
+            }
+            
+            # put back @
+            clu_entity_object = at_reverser(clu_entity_object)
+
+            # fill list with key values
+            for hf_key_value_object in hf_entity["values"]:
+                clu_expression = {
+                    "regexKey": str(hf_key_value_object["id"]).replace("entval-",""), # remove entval from the ID to recreate the key
+                    "language": language,
+                    "regexPattern": hf_key_value_object["synonyms"][0]["value"]
+                }
+                clu_entity_object["regex"]["expressions"].append(copy.deepcopy(clu_expression))
+
+        except Exception as e:
+            print(json.dumps(hf_entity,indent=2))
+            raise
+            # Need some sort of debug here  
+
+        # return copy of entity
+        return copy.deepcopy(clu_entity_object)
+
     def hf_to_clu_list_entity_mapper(self, hf_entity: dict, language: str) -> dict:
-        """converts hf entity format to clu entity format"""
+        """converts hf entity format to clu list entity format"""
         # known_entity_key_types = ["prebuilts","list","requiredComponents"]
         # script_supported_types = ["list"]
 
