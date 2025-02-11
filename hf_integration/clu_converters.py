@@ -150,11 +150,11 @@ def at_replacer(hf_entity_object: dict) -> dict:
         hf_entity_object["name"] = str(hf_entity_object["name"]).replace("@","AT__")
     return hf_entity_object
         
-def at_reverser(hf_entity_object: dict) -> dict:
+def at_reverser(clu_entity_object: dict) -> dict:
     """Replaces AT__ in the name with @"""
-    if str(hf_entity_object["name"]).startswith("AT__"):
-        hf_entity_object["name"] = str(hf_entity_object["name"]).replace("AT__","@")
-    return hf_entity_object
+    if str(clu_entity_object["category"]).startswith("AT__"):
+        clu_entity_object["category"] = str(clu_entity_object["category"]).replace("AT__","@")
+    return clu_entity_object
 
 
 class clu_to_hf_converter:
@@ -214,6 +214,11 @@ class clu_to_hf_converter:
         entity = {}
         for clu_entity_object in clu_entities:
 
+            # if not clu_entity_object["category"] == "@SCHADE_eigenaar_schadeobject":
+            #     continue
+            # else:
+            #     print("FOUND")
+
             assert isinstance(clu_entity_object,dict)
 
             # is it a regex?
@@ -265,6 +270,9 @@ class clu_to_hf_converter:
                     hf_json["examples"][i]["entities"] = []
                     # For each CLU annotation build the HF annotation
                     for clu_annotation in clu_json["assets"]["utterances"][i]["entities"]:
+                        
+                        # if not clu_annotation["category"] == "@SCHADE_eigenaar_schadeobject":
+                        #     continue
                         
                         # Work out based on the offset and length the span and synonym
                         start_char_index = clu_annotation["offset"]
@@ -643,6 +651,31 @@ class hf_to_clu_converter:
             logger.info(f'Found test_tag_id: {test_tag_id}\n')
         else:
             logger.info('No test_tag_id found.\n')
+            
+        # entities - have to do ahead of utterances as the utterances will need to refer back to them.
+        clu_json["assets"]["entities"] = []
+        if "entities" in hf_json:
+            for hf_entity in hf_json["entities"]:
+                # if goes here of different entity types
+                
+                # check if regex
+                if "is_regex" in hf_entity:
+                    logger.warning("IsRegex")                
+                # check if system
+                elif "system_type" in hf_entity:
+                    if hf_entity["system_type"] == "SYS_DATE_TIME":
+                        logger.warning("SystemType: SYS_DATE_TIME")
+                    elif hf_entity["system_type"] == "SYS_NUMBER":
+                        logger.warning("SystemType: SYS_NUMBER")
+                    else:
+                        logger.warning("SystemType not supported")    
+                # else we are going to assume list (learned) will come from annotations
+                else:
+                    if not "values" in hf_entity:
+                        logger.warning("No values in entity")
+                        continue
+                    else:
+                        clu_json["assets"]["entities"].append(self.hf_to_clu_list_entity_mapper(hf_entity,language))
 
         # examples section
         df_examples = pandas.json_normalize(hf_json["examples"])
@@ -651,6 +684,21 @@ class hf_to_clu_converter:
                                                         args=[language,hf_workspace,test_tag_id,skip],
                                                         axis=1)
         clu_json["assets"]["utterances"] = df_examples["clu_utterance"].to_list()
+        
+        # go through and update all the clu_entities with requiredComponent = ['learned']
+        # where they have any annotations
+        
+        # find every utterance
+        for clu_utterance in clu_json["assets"]["utterances"]:
+            # where it has entity annotations find each one
+            for clu_entity_annotation in clu_utterance["entities"]:
+                # search for that same entity name within the entities
+                for clu_entity in clu_json["assets"]["entities"]:
+                    # Check if learned is already set and if not set it.
+                    if clu_entity_annotation["category"] == clu_entity["category"]:
+                        if not "requiredComponents" in clu_entity:
+                            clu_entity["requiredComponents"] = ["learned"]
+                        break      
 
         # find any intents that were in utterances
         # this avoids creating any parents, but also doesn't create empty children
@@ -669,12 +717,6 @@ class hf_to_clu_converter:
         #
         clu_json["assets"]["intents"] = clu_intents
 
-        # entities
-        clu_json["assets"]["entities"] = []
-        if "entities" in hf_json:
-            for hf_entity in hf_json["entities"]:
-                    clu_json["assets"]["entities"].append(self.hf_to_clu_entity_mapper(hf_entity,language))
-
         return clu_json
 
     def hf_to_clu_intent_mapper(self, intent_name: str) -> dict:
@@ -685,7 +727,7 @@ class hf_to_clu_converter:
             "category": intent_name
         }
 
-    def hf_to_clu_entity_mapper(self, hf_entity: dict, language: str) -> dict:
+    def hf_to_clu_list_entity_mapper(self, hf_entity: dict, language: str) -> dict:
         """converts hf entity format to clu entity format"""
         # known_entity_key_types = ["prebuilts","list","requiredComponents"]
         # script_supported_types = ["list"]
@@ -699,39 +741,45 @@ class hf_to_clu_converter:
         #     warnings.warn(f'Unknown entity type keys are: {entity.keys()}')
         #     continue:
 
-        # build entity object
-        clu_entity_object = {
-            "category": hf_entity["name"],
-            "compositionSetting": "combineComponents",
-            "list": {
-                "sublists": []
+        try:
+            # build entity object
+            clu_entity_object = {
+                "category": hf_entity["name"],
+                "compositionSetting": "combineComponents",
+                "list": {
+                    "sublists": []
+                }
             }
-        }
-        
-        # TODO: need to reverse @ prefixing 
+            
+            # put back @
+            clu_entity_object = at_reverser(clu_entity_object)
 
-        # fill list with key values
-        for hf_key_value_object in hf_entity["values"]:
-            clu_sublist_object = {
-                "listKey": hf_key_value_object["key_value"],
-                "synonyms": [
-                    {
-                        "language": language,
-                        "values": []
-                    }
-                ]
-            }
+            # fill list with key values
+            for hf_key_value_object in hf_entity["values"]:
+                clu_sublist_object = {
+                    "listKey": hf_key_value_object["key_value"],
+                    "synonyms": [
+                        {
+                            "language": language,
+                            "values": []
+                        }
+                    ]
+                }
 
-            # fill values with values
-            if "synonyms" in hf_key_value_object:
-                for synonym in hf_key_value_object["synonyms"]:
-                    clu_sublist_object["synonyms"][0]["values"].append(synonym["value"])
-            else:
-                # Every entity value should have atleast a synonym
-                clu_sublist_object["synonyms"][0]["values"].append(hf_key_value_object["key_value"])
+                # fill values with values
+                if "synonyms" in hf_key_value_object:
+                    for synonym in hf_key_value_object["synonyms"]:
+                        clu_sublist_object["synonyms"][0]["values"].append(synonym["value"])
+                else:
+                    # Every entity value should have atleast a synonym
+                    clu_sublist_object["synonyms"][0]["values"].append(hf_key_value_object["key_value"])
 
-            # insert sublist into entity
-            clu_entity_object["list"]["sublists"].append(copy.deepcopy(clu_sublist_object))
+                # insert sublist into entity
+                clu_entity_object["list"]["sublists"].append(copy.deepcopy(clu_sublist_object))
+        except Exception as e:
+            print(json.dumps(hf_entity,indent=2))
+            raise
+            # Need some sort of debug here  
 
         # return copy of entity
         return copy.deepcopy(clu_entity_object)
@@ -778,6 +826,11 @@ class hf_to_clu_converter:
                         }
 
                     clu_entities.append(clu_annotation)
+        
+            # So all the annotations are here but we need to add back in the requiredComponent for learned
+            # So if it has annotations we assume it has learned and that is required only assumption possible
+            # Can't do it here in the code as we need to add the information to the clu_entity object
+            # not the utterance annotation.
 
         return {
             "text": row["text"],

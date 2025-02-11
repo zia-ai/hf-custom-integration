@@ -36,6 +36,7 @@ def main(filename: str, merge_filename:str) -> None: # pylint: disable=unused-ar
     assert output_filename != filename
     with open(output_filename,mode="w",encoding="utf8") as file_out:
         json.dump(hf_dict,file_out,indent=4)
+        print(f'Wrote to: {output_filename}')
     
     
 
