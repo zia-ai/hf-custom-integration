@@ -317,7 +317,7 @@ class clu_to_hf_converter:
                 "name": category,
                 "values": [
                     {
-                        "id": humanfirst.objects.hash_string(synonym,"entval"),
+                        "id": humanfirst.objects.hash_string(category + synonym,"entval"),
                         "key_value": "learned_annotation",
                         "synonyms": [
                             {
@@ -352,7 +352,7 @@ class clu_to_hf_converter:
         
         # otherwise we need to create a new learned_annotation
         hf_value = {
-            "id": humanfirst.objects.hash_string(synonym,"entval"),
+            "id": humanfirst.objects.hash_string(category + synonym,"entval"),
             "key_value": "learned_annotation",
             "synonyms": [
                 {
@@ -399,7 +399,7 @@ class clu_to_hf_converter:
             # add key values
             for clu_sublist_object in clu_entity_object["list"]["sublists"]:
                 hf_key_value_object = {
-                    "id": humanfirst.objects.hash_string(clu_sublist_object["listKey"],"entval"),
+                    "id": humanfirst.objects.hash_string(clu_entity_object["category"] + clu_sublist_object["listKey"],"entval"),
                     "key_value": clu_sublist_object["listKey"],
                     "synonyms": []
                 }
