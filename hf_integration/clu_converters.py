@@ -608,48 +608,6 @@ class clu_to_hf_converter:
 
         return copy.deepcopy(hf_entity)
 
-        
-    def clu_to_hf_regex_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
-        """Builds a HF regex object from a CLU regex entity"""
-        
-        try:            
-            # hf_entity skeleton regex using name to generate hash id
-            isonow = datetime.now().isoformat()
-            hf_entity =  {
-                "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
-                "name": clu_entity_object["category"],
-                "values": [],
-                "is_regex": True,
-                "settings": {},
-                "created_at": isonow,
-                "updated_at": isonow
-            }
-            
-            # replace @
-            hf_entity = at_replacer(hf_entity)
-            
-            # go through each CLU expression and create a humanfirst value object for it.
-            # language is not preserved - assumed to come back in on reconversion
-            values = []
-            for expression in clu_entity_object["regex"]["expressions"]:
-                hf_value_object = {
-                    "id": f'entval-{expression["regexKey"]}',
-                    "key_value": expression["regexPattern"],
-                    "synonyms": [
-                        {
-                            "value": expression["regexPattern"]
-                        }
-                    ]
-                }
-                values.append(hf_value_object)
-            hf_entity["values"] = values
-            
-        except Exception as e:
-            print(json.dumps(clu_entity_object,indent=2))
-            raise
-            # Need some sort of debug here
-
-        return copy.deepcopy(hf_entity)
 
 class hf_to_clu_converter:
     def hf_to_clu_process(self,
@@ -831,7 +789,7 @@ class hf_to_clu_converter:
             # fill list with key values
             for hf_key_value_object in hf_entity["values"]:
                 clu_expression = {
-                    "regexKey": str(hf_key_value_object["id"]).replace("entval-",""), # remove entval from the ID to recreate the key
+                    "regexKey": str(hf_key_value_object["source"]["merged_ids"][0]).replace("entval-",""), # remove entval from the ID to recreate the key
                     "language": language,
                     "regexPattern": hf_key_value_object["synonyms"][0]["value"]
                 }
