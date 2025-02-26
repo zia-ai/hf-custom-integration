@@ -5,11 +5,11 @@ workflows:
       - build-docker-image:
           context:
             - org-global
-          # filters:
-          #   tags:
-          #     only: /^v.*/
-          #   branches:
-          #     ignore: /.*/
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
 
 
 aliases:
@@ -59,7 +59,7 @@ jobs:
       - run: *gcp_auth
       - run: *configure_docker_credential
       - setup_remote_docker:
-          docker_layer_caching: true
+          docker_layer_caching: false
       - run:
           name: Build docker image
           command: |
