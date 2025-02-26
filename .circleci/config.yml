@@ -74,10 +74,24 @@ jobs:
     steps:
       - checkout
 
-      # Debug connectivity before using BuildKit
       - run:
           name: Verify BuildKit Connection
-          command: *configure_buildx_context
+          command: |
+            echo "Checking if BuildKit is reachable..."
+            ping -c 4 buildkitd-0.buildkitd-headless.circleci.svc.cluster.local || echo "Ping failed"
+            nc -zv buildkitd-0.buildkitd-headless.circleci.svc.cluster.local 1234 || echo "Netcat connection failed"
+
+            # If DNS fails, fallback to IP
+            echo "Resolving BuildKit service IP..."
+            BUILDKIT_IP=$(kubectl get svc buildkitd-headless -n circleci -o jsonpath='{.spec.clusterIP}')
+            echo "BuildKit IP: $BUILDKIT_IP"
+
+            docker buildx create --name remote-kubernetes --driver remote \
+              --driver-opt cacert=/certs/ca.pem,cert=/certs/cert.pem,key=/certs/key.pem \
+              tcp://$BUILDKIT_IP:1234
+
+            docker buildx use remote-kubernetes
+            sleep 10  # Give extra time for BuildKit to connect
 
       - run: *gcp_auth
       - run: *configure_docker_credential
