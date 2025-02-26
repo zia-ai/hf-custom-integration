@@ -1,5 +1,4 @@
 version: 2.1
-
 workflows:
   build:
     jobs:
@@ -12,29 +11,19 @@ workflows:
             branches:
               ignore: /.*/
 
+
 aliases:
   - &configure_buildx_context
     name: Configure remote docker buildx context
     command: |
-      echo "Checking if BuildKit is reachable..."
-      ping -c 4 buildkitd-0.buildkitd-headless.circleci.svc.cluster.local || echo "Ping failed"
-      nc -zv buildkitd-0.buildkitd-headless.circleci.svc.cluster.local 1234 || echo "Netcat connection failed"
-
-      # If DNS fails, fallback to IP
-      echo "Resolving BuildKit service IP..."
-      BUILDKIT_IP=$(kubectl get svc buildkitd-headless -n circleci -o jsonpath='{.spec.clusterIP}')
-      echo "BuildKit IP: $BUILDKIT_IP"
-
-      docker buildx create --name remote-kubernetes --driver remote \
-        --driver-opt cacert=/certs/ca.pem,cert=/certs/cert.pem,key=/certs/key.pem \
-        tcp://$BUILDKIT_IP:1234
-
+      docker buildx create --name remote-kubernetes --driver remote --driver-opt cacert=/certs/ca.pem,cert=/certs/cert.pem,key=/certs/key.pem tcp://buildkitd-0.buildkitd-headless.circleci.svc.cluster.local:1234
       docker buildx use remote-kubernetes
-      sleep 10  # Give extra time for BuildKit to connect
 
   - &gcp_auth
     name: "Authenticate to Google Cloud"
     command: |
+      # Snippet from https://discuss.circleci.com/t/walk-through-oidc-to-gcp/44224
+      # Configures application default credentials without requiring gcloud to be installed
       GCP_OIDC_AUDIENCE="projects/${GOOGLE_PROJECT_ID}/locations/global/workloadIdentityPools/${OIDC_WIP_ID}/providers/${OIDC_WIP_PROVIDER_ID}"
       GCP_IMPERSONATION_URL="https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${OIDC_SERVICE_ACCOUNT_EMAIL}:generateAccessToken"
 
@@ -53,7 +42,6 @@ aliases:
         "service_account_impersonation_url": "${GCP_IMPERSONATION_URL}"
       }
       EOF
-
   - &configure_docker_credential
     name: Install docker credential helper
     command: |
@@ -66,6 +54,7 @@ aliases:
       echo ${GOOGLE_AUTH} > $HOME/.config/gcloud/application_default_credentials.json
       docker-credential-gcr configure-docker
 
+
 jobs:
   build-docker-image:
     docker:
@@ -73,48 +62,14 @@ jobs:
     resource_class: small
     steps:
       - checkout
-
-      - run:
-          name: Verify BuildKit Connection
-          command: |
-            echo "Checking if BuildKit is reachable..."
-            ping -c 4 buildkitd-0.buildkitd-headless.circleci.svc.cluster.local || echo "Ping failed"
-            nc -zv buildkitd-0.buildkitd-headless.circleci.svc.cluster.local 1234 || echo "Netcat connection failed"
-
-            # If DNS fails, fallback to IP
-            echo "Resolving BuildKit service IP..."
-            BUILDKIT_IP=$(kubectl get svc buildkitd-headless -n circleci -o jsonpath='{.spec.clusterIP}')
-            echo "BuildKit IP: $BUILDKIT_IP"
-
-            docker buildx create --name remote-kubernetes --driver remote \
-              --driver-opt cacert=/certs/ca.pem,cert=/certs/cert.pem,key=/certs/key.pem \
-              tcp://$BUILDKIT_IP:1234
-
-            docker buildx use remote-kubernetes
-            sleep 10  # Give extra time for BuildKit to connect
-
+      - run: *configure_buildx_context
       - run: *gcp_auth
       - run: *configure_docker_credential
-
       - run:
-          name: Verify TLS Certificates
-          command: ls -lah /certs
-
-      - run:
-          name: Build Docker Image
+          name: Build docker image
           command: |
-            export DOCKER_BUILDKIT=1
-            export BUILDKIT_STEP_LOG_MAX_SIZE=10000000
-            export BUILDKIT_PROGRESS=plain
-
             IMAGE_SHA1=$(echo $CIRCLE_SHA1 | cut -c -7)
             IMAGE_BRANCH=$(echo $CIRCLE_BRANCH | sed -e 's/\//\-/g')
             IMAGE_TAG="${CIRCLE_TAG:-$IMAGE_BRANCH}"
             IMAGE_NAME="clu-integration"
-
-            echo "Waiting 10s before build to prevent timeout issues..."
-            sleep 10 
-
-            docker buildx build -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_TAG \
-              -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_SHA1 \
-              --progress plain --push .
+            docker buildx build -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_TAG -t $IMAGE_URL/$IMAGE_NAME:$IMAGE_SHA1 --progress plain --push .
