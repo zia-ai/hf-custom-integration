@@ -41,7 +41,7 @@ aliases:
       mkdir -p ~/.config/gcloud
       echo "${CIRCLE_OIDC_TOKEN}" > $HOME/.config/gcloud/oidc_token
 
-      cat >> $HOME/.config/gcloud/application_default_credentials.json <<- EOF
+      cat >> $HOME/.config/gcloud/application_default_credentials.json \<<- EOF
       {
         "type": "external_account",
         "audience": "//iam.googleapis.com/${GCP_OIDC_AUDIENCE}",
