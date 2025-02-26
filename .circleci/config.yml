@@ -59,7 +59,7 @@ jobs:
   build-docker-image:
     docker:
       - image: cimg/base:current-22.04
-    resource_class: zia-ai/small
+    resource_class: small
     steps:
       - checkout
       - run: *configure_buildx_context
