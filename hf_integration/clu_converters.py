@@ -417,7 +417,7 @@ class clu_to_hf_converter:
                         raise RuntimeError(f'Could not find language synonyms for {language}')
                     hf_entity["values"].append(copy.deepcopy(hf_key_value_object))
         except Exception as e:
-            print(json.dumps(clu_entity_object,indent=2))
+            logger.error(json.dumps(clu_entity_object,indent=2))
             raise
             # Need some sort of debug here
 
@@ -488,7 +488,7 @@ class clu_to_hf_converter:
             hf_entity = at_replacer(hf_entity)
 
         except Exception as e:
-            print(json.dumps(clu_entity_object,indent=2))
+            logger.error(json.dumps(clu_entity_object,indent=2))
             raise
             # Need some sort of debug here
 
@@ -559,7 +559,7 @@ class clu_to_hf_converter:
             hf_entity = at_replacer(hf_entity)           
             
         except Exception as e:
-            print(json.dumps(clu_entity_object,indent=2))
+            logger.error(json.dumps(clu_entity_object,indent=2))
             raise
             # Need some sort of debug here
 
@@ -602,7 +602,7 @@ class clu_to_hf_converter:
             hf_entity["values"] = values
             
         except Exception as e:
-            print(json.dumps(clu_entity_object,indent=2))
+            logger.error(json.dumps(clu_entity_object,indent=2))
             raise
             # Need some sort of debug here
 
@@ -669,7 +669,7 @@ class hf_to_clu_converter:
 
         # examples section
         df_examples = pandas.json_normalize(hf_json["examples"])
-        logger.info(df_examples)
+        # logger.info(df_examples)
         df_examples["clu_utterance"] = df_examples.apply(self.hf_to_clu_utterance_mapper,
                                                         args=[language,hf_workspace,test_tag_id,skip],
                                                         axis=1)
@@ -745,7 +745,7 @@ class hf_to_clu_converter:
             clu_entity_object = at_reverser(clu_entity_object)
 
         except Exception as e:
-            print(json.dumps(hf_entity,indent=2))
+            logger.error(json.dumps(hf_entity,indent=2))
             raise
             # Need some sort of debug here  
 
@@ -796,7 +796,7 @@ class hf_to_clu_converter:
                 clu_entity_object["regex"]["expressions"].append(copy.deepcopy(clu_expression))
 
         except Exception as e:
-            print(json.dumps(hf_entity,indent=2))
+            logger.error(json.dumps(hf_entity,indent=2))
             raise
             # Need some sort of debug here  
 
@@ -853,7 +853,7 @@ class hf_to_clu_converter:
                 # insert sublist into entity
                 clu_entity_object["list"]["sublists"].append(copy.deepcopy(clu_sublist_object))
         except Exception as e:
-            print(json.dumps(hf_entity,indent=2))
+            logger.error(json.dumps(hf_entity,indent=2))
             raise
             # Need some sort of debug here  
 

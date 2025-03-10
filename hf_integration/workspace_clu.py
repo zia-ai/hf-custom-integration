@@ -160,8 +160,8 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
     def ListWorkspaces(self, request: workspace_pb2.ListWorkspacesRequest, context) -> workspace_pb2.ListWorkspacesResponse:
         """List Workspaces"""
 
-        print("ListWorkspaces")
-        print(request)
+        logger.info("ListWorkspaces")
+        # logger.info(request)
 
         workspaces = []
         for project in self.clu_api.list_projects():
@@ -172,9 +172,9 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
     def GetWorkspace(self, request: workspace_pb2.GetWorkspaceRequest, context) -> workspace_pb2.Workspace:
         """Get workspace"""
 
-        print("GetWorkspace")
+        logger.info("GetWorkspace")
 
-        print(request)
+        # logger.info(request)
 
         if request.workspace_id in self.clu_api.list_projects():
             return workspace_pb2.Workspace(id=request.workspace_id, name=request.workspace_id)
@@ -185,8 +185,8 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         """
         Create a new workspace
         """
-        print("CreateWorkspace")
-        print(request)
+        logger.info("CreateWorkspace")
+        # logger.info(request)
         self.clu_api.clu_create_project(project_name=request.workspace.name,
                                         des = request.workspace.description,
                                         language=self.language,
@@ -200,19 +200,19 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
 
         In this case, we specifically request the HF json format
         """
-        print("GetImportParameters")
-        print(request)
-        # print(request.language_code)
+        logger.info("GetImportParameters")
+        # logger.info(request)
+        # logger.info(request.language_code)
         return workspace_pb2.GetImportParametersResponse(data_format=self.data_format, format_options=self.format_options)
 
     def ImportWorkspace(self, request: workspace_pb2.ImportWorkspaceRequest, context) -> workspace_pb2.ImportWorkspaceResponse:
         """
         Import a workspace into the integration, from the provided data exported from Studio
         """
-        print("ImportWorkspace")
-        print(request)
-        print(f"Hierarchical Delimiter: {request.format_options.hierarchical_delimiter}")
-        # print(request.language_code)
+        logger.info("ImportWorkspace")
+        # logger.info(request)
+        logger.info(f"Hierarchical Delimiter: {request.format_options.hierarchical_delimiter}")
+        # logger.info(request.language_code)
         # Get the current timestamp
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         project_name = self.clu_api._remove_non_alphanumeric(input_string=request.workspace_id)
@@ -278,9 +278,9 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         Exports a workspace from the integration, importing it into Studio
         """
 
-        print("ExportWorkspace")
-        print(request)
-        # print(request.language_code)
+        logger.info("ExportWorkspace")
+        # logger.info(request)
+        # logger.info(request.language_code)
 
         # Get the current timestamp
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
