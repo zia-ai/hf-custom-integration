@@ -195,6 +195,10 @@ Follow the steps here - https://www.notion.so/humanfirst/Custom-NLU-d4bb84f08676
 
 **13. Remove train tag while importing from CLU**
 
+**14. Train test split uses only training dataset for splitting. Hence we use 100% train and 0% test split.**
+
+**15. To perform evaluation of "Test" utterances, perform blind test in HF tool**
+
 ## Handling cancellations
 ### Cancellation Callback:
 * Added on_cancel() which gets called if the client cancels the request. It sets the self.is_cancelled flag.
