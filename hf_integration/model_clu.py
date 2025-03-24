@@ -47,6 +47,10 @@ CLU_SUPPORTED_LANGUAGE_CODES = [
 
 CLU_SUPPORTED_TRAINING_MODES = ["standard","advanced"]
 
+DEFAULT_CONFIDENCE_THRESHOLD = 0.0
+
+DEFAULT_NORMALIZE_CASING = False
+
 # locate where we are
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -157,6 +161,19 @@ class ModelServiceCLU(ModelServiceGeneric):
 
         # train a model in one language and use to predict intents and entities from utterances in another language 
         self.multilingual = {"True": True, "False": False}[self.config["clu_multilingual"]]
+
+        # check for confidence threshold
+        self.confidence_threshold = float(DEFAULT_CONFIDENCE_THRESHOLD)
+        if "clu_confidence_threshold" in self.config:
+            if self.config["clu_confidence_threshold"] != "":
+                # has to be a float value
+                self.confidence_threshold = float(self.config["clu_confidence_threshold"])
+        
+        # check for normalize casing
+        self.normalize_casing = DEFAULT_NORMALIZE_CASING
+        if "clu_normalize_casing" in self.config:
+            if self.config["clu_normalize_casing"] != "":
+                self.normalize_casing = {"True": True, "False": False}[self.config["clu_normalize_casing"]]
 
         # Check for correct training mode
         if self.config["clu_training_mode"] in CLU_SUPPORTED_TRAINING_MODES:
@@ -282,6 +299,8 @@ class ModelServiceCLU(ModelServiceGeneric):
             self.clu_api.clu_create_project(project_name=project_name,
                                             des="Train and eval",
                                             language=self.language,
+                                            confidence_threshold=self.confidence_threshold,
+                                            normalize_casing=self.normalize_casing,
                                             multilingual=self.multilingual)
             logger.info("\nNew project created")
 

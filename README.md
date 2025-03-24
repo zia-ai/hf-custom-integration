@@ -135,7 +135,7 @@ Example command installing CLI-1.35.0
 
     Example:
     ```
-    poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,clu_language::en-us,clu_multilingual::True,clu_training_mode::standard,max_batch_size::500,training_delimiter::---"
+    poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,clu_language::en-us,clu_multilingual::True,clu_training_mode::standard,max_batch_size::500,training_delimiter::---,clu_confidence_threshold::0.0,clu_normalize_casing::False"
 
     CLU config params:
     clu_endpoint
@@ -146,6 +146,8 @@ Example command installing CLI-1.35.0
     clu_multilingual
     clu_training_mode
     max_batch_size
+    clu_confidence_threshold
+    clu_normalize_casing
     ```
 
 10. IF the IP address of the integration server changes, then use the following command to set the IP address of the integration server in the HF

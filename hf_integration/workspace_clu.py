@@ -35,6 +35,10 @@ CLU_SUPPORTED_LANGUAGE_CODES = [
     "zh-hant", "zu"
 ]
 
+DEFAULT_CONFIDENCE_THRESHOLD = 0.0
+
+DEFAULT_NORMALIZE_CASING = False
+
 # locate where we are
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -145,12 +149,25 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         else:
             raise RuntimeError(f'{self.config["clu_language"]} is not supported by CLU')
         
-        self.multilingual = self.multilingual = {"True": True, "False": False}[self.config["clu_multilingual"]]
+        self.multilingual = {"True": True, "False": False}[self.config["clu_multilingual"]]
 
         # check for delimiter
         if "workspace_delimiter" in self.config:
             if self.config["workspace_delimiter"] != "":
                 self.format_options.hierarchical_delimiter=self.config["workspace_delimiter"]
+        
+        # check for confidence threshold
+        self.confidence_threshold = float(DEFAULT_CONFIDENCE_THRESHOLD)
+        if "clu_confidence_threshold" in self.config:
+            if self.config["clu_confidence_threshold"] != "":
+                # has to be a float value
+                self.confidence_threshold = float(self.config["clu_confidence_threshold"])
+        
+        # check for normalize casing
+        self.normalize_casing = DEFAULT_NORMALIZE_CASING
+        if "clu_normalize_casing" in self.config:
+            if self.config["clu_normalize_casing"] != "":
+                self.normalize_casing = {"True": True, "False": False}[self.config["clu_normalize_casing"]]
 
 
     def _write_json(self,path: str, data: dict ) -> None:
@@ -190,7 +207,10 @@ class WorkspaceServiceCLU(WorkspaceServiceGeneric):
         self.clu_api.clu_create_project(project_name=request.workspace.name,
                                         des = request.workspace.description,
                                         language=self.language,
-                                        multilingual=self.multilingual)
+                                        confidence_threshold=self.confidence_threshold,
+                                        normalize_casing=self.normalize_casing,
+                                        multilingual=self.multilingual,
+                                        )
 
         return workspace_pb2.Workspace(id=request.workspace.name, name=request.workspace.name)
 
