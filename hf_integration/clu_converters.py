@@ -789,7 +789,7 @@ class hf_to_clu_converter:
             # fill list with key values
             for hf_key_value_object in hf_entity["values"]:
                 clu_expression = {
-                    "regexKey": str(hf_key_value_object["source"]["merged_ids"][0]).replace("entval-",""), # remove entval from the ID to recreate the key
+                    "regexKey": str(hf_key_value_object["source"]["merged_ids"][-1]).replace("entval-",""), # remove entval from the ID to recreate the key
                     "language": language,
                     "regexPattern": hf_key_value_object["synonyms"][0]["value"]
                 }
