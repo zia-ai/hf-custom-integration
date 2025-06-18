@@ -5,6 +5,8 @@ Convert CLU JSON into HF and  HF to CLU JSON
 
 """
 # *********************************************************************************************************************
+# TODO: standardise if and when deepcopy required
+# on the return - on the call - not both
 
 # standard imports
 import datetime
@@ -13,7 +15,7 @@ import copy
 import logging.config
 import os
 from datetime import datetime
-import sys
+import json
 
 # 3rd party imports
 import pandas
@@ -25,6 +27,17 @@ import humanfirst
 # CLU name constants
 TRAIN="Train"
 TEST="Test"
+
+# Sys entity mappers 
+SYSTEM_ENTITY_MAPPER = {
+    "DateTime": "SYS_DATE_TIME",
+    "Quantity.Number": "SYS_NUMBER"
+}
+SYSTEM_ENTITY_REVERSER = {
+    "SYS_DATE_TIME":"DateTime",
+    "SYS_NUMBER":"Quantity.Number"
+}
+
 
 # locate where we are
 here = os.path.abspath(os.path.dirname(__file__))
@@ -132,6 +145,18 @@ def reverse_utf8span(s: str, byte_index: int) -> int:
     truncated_encoded = encoded[:byte_index]
     return len(truncated_encoded.decode('utf-8', errors='ignore'))
 
+def at_replacer(hf_entity_object: dict) -> dict:
+    """Replaces @ in the name with AT__"""
+    if str(hf_entity_object["name"]).startswith("@"):
+        hf_entity_object["name"] = str(hf_entity_object["name"]).replace("@","AT__")
+    return hf_entity_object
+        
+def at_reverser(clu_entity_object: dict) -> dict:
+    """Replaces AT__ in the name with @"""
+    if str(clu_entity_object["category"]).startswith("AT__"):
+        clu_entity_object["category"] = str(clu_entity_object["category"]).replace("AT__","@")
+    return clu_entity_object
+
 
 class clu_to_hf_converter:
     def clu_to_hf_process(
@@ -187,68 +212,73 @@ class clu_to_hf_converter:
 
         # make entities
         hf_json["entities"] = []
-        simple_entity = {}
-        unsupported_entity_type_list = []
+        entity = {}
         for clu_entity_object in clu_entities:
 
             assert isinstance(clu_entity_object,dict)
-            known_entity_key_types = ["prebuilts","list","requiredComponents"]
-            script_supported_types = ["list"]
 
-            # check type and skip if unknown
-            known_entity = False
-            for entity_type in known_entity_key_types:
-                if entity_type in clu_entity_object:
-                    known_entity = True
-                    if entity_type in script_supported_types:
-                        entity = self.clu_to_hf_entity_mapper(clu_entity_object,language=language)
-                        hf_json["entities"].append(entity)
-                        simple_entity[entity["name"]] = {}
-                        for value in entity["values"]:
-                            simple_entity[entity["name"]][value["key_value"]] = []
-                            for synonym in value["synonyms"]:
-                                simple_entity[entity["name"]][value["key_value"]].append(synonym["value"])
-                    else:
-                        unsupported_entity_type_list.append(clu_entity_object["category"])
-
-            if not known_entity:
-                unsupported_entity_type_list.append(clu_entity_object["category"])
-
-        if unsupported_entity_type_list:
-            raise RuntimeError(f"Unsupported entities in HumanFirst tool - {unsupported_entity_type_list}\nPlease check for learned, prebuilts, or any new entity types. Every entity has to be listed for HumanFirst tool to accept")
+            # is it a regex?
+            if "regex" in clu_entity_object:
+                if "list" in clu_entity_object:
+                    logger.warning("Both regex and list in entity - this cannot be supported")
+                    logger.warning(clu_entity_object)
+                # make a check here that there is no list type
+                entity = self.clu_to_hf_regex_entity_mapper(clu_entity_object,language=language)
+            
+            # is it prebuilt
+            elif "prebuilts" in clu_entity_object:
+                entity = self.clu_to_hf_prebuilt_entity_mapper(clu_entity_object,language=language)
         
+            # is it a list
+            elif "list" in clu_entity_object:
+                entity = self.clu_to_hf_list_entity_mapper(clu_entity_object,language=language)
+                           
+            # is it learned
+            elif "requiredComponents" in clu_entity_object and "learned" in clu_entity_object["requiredComponents"]:
+                logger.debug("Learned will be built later")
+                continue
+            
+            # is it a one word entity - convert it to list
+            elif len(clu_entity_object.keys()) == 2 and "category" in clu_entity_object and "compositionSetting" in clu_entity_object:
+                entity = self.clu_to_hf_one_word_entity_mapper(clu_entity_object,language=language)
+                
+            else:
+                logger.warning("None of the expected entity types encountered")
+                logger.warning(clu_entity_object)
+                continue
+            
+            # add it to the json    
+            hf_json["entities"].append(entity)
+
+        
+        # Entity annotation section
         error_annotated_text = []
         error_full_text = []
         error_full_intent_name = []
+        
+        # For every utterance in the inbound CLU file
         for i,_ in enumerate(clu_json["assets"]["utterances"]):
+            # see if it has entities annotating the utterance
             if "entities" in clu_json["assets"]["utterances"][i]:
+                # if it does and it's not blank
                 if clu_json["assets"]["utterances"][i]["entities"] != []:
+                    # Fill out the entities
                     hf_json["examples"][i]["entities"] = []
+                    # For each CLU annotation build the HF annotation
                     for clu_annotation in clu_json["assets"]["utterances"][i]["entities"]:
+                                                
+                        # Work out based on the offset and length the span and synonym
                         start_char_index = clu_annotation["offset"]
                         end_char_index = clu_annotation["offset"] + clu_annotation["length"]
                         start_byte_index = utf8span(clu_json["assets"]["utterances"][i]["text"], start_char_index)
                         end_byte_index = utf8span(clu_json["assets"]["utterances"][i]["text"], end_char_index)
                         synonym = clu_json["assets"]["utterances"][i]["text"][start_char_index:end_char_index]
-                        utterance_text = clu_json["assets"]["utterances"][i]["text"]
-                        intent_name = clu_json["assets"]["utterances"][i]["intent"]
-                        for entity_key_value,entity_synonyms in simple_entity[clu_annotation["category"]].items():
-                            # HF tool allows case insensitive match
-                            if synonym.lower() == entity_key_value.lower():
-                                hf_entity_key = entity_key_value
-                                break
-                            for j,_ in enumerate(entity_synonyms):
-                                entity_synonyms[j] = entity_synonyms[j].lower()
-                            if synonym.lower() in entity_synonyms:
-                                hf_entity_key = entity_key_value
-                                break
-                        else:
-                            error_annotated_text.append(synonym)
-                            error_full_text.append(utterance_text)
-                            error_full_intent_name.append(intent_name)
-                            hf_entity_key = ""
-                            # raise RuntimeError(f"'{synonym}' is not present in entity: '{simple_entity[clu_annotation['category']]}'")
-
+                                               
+                        # Check here we have the entity keys and values created in humanfirst by a list entity
+                        # if not create it
+                        hf_json["entities"] = self.check_and_update_list_entity(hf_json["entities"],clu_annotation["category"],synonym,language)
+                        
+                        
                         hf_annotation = {
                             "name": clu_annotation["category"],
                             "text": synonym,
@@ -256,7 +286,7 @@ class clu_to_hf_converter:
                                 "from_character": start_byte_index,
                                 "to_character": end_byte_index
                             },
-                            "value": hf_entity_key
+                            "value": self.find_key_value_for_synonym(hf_json["entities"],clu_annotation["category"],synonym)
                         }
 
                         hf_json["examples"][i]["entities"].append(hf_annotation)
@@ -264,40 +294,132 @@ class clu_to_hf_converter:
             raise RuntimeError(f"Error annotatations: {error_annotated_text}\nIn corresponding utterance list : {error_full_text}\nIn corresponding intent list {error_full_intent_name}\nDon't exists in any entities")
         return hf_json
 
-
-    def clu_to_hf_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
-        """Builds a HF entity object for any clu lists"""
-
-        # hf_entity using name to generate hash id
+    def check_and_update_list_entity(self, hf_entities: list, category: str, synonym: str, language: str) -> dict:
+        """Checks if a clu entity category exists in the hf_entities
+        If it doesn't it creates it.
+        Then checks if the annotation"""
+        
         isonow = datetime.now().isoformat()
-        hf_entity =  {
-            "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
-            "name": clu_entity_object["category"],
-            "values": [],
-            "created_at": isonow,
-            "updated_at": isonow
-        }
-
-        # add key values
-        for clu_sublist_object in clu_entity_object["list"]["sublists"]:
-            hf_key_value_object = {
-                "id": humanfirst.objects.hash_string(clu_sublist_object["listKey"],"entval"),
-                "key_value": clu_sublist_object["listKey"],
-                "synonyms": []
+        
+        # Search to see if the matching list entity exists.
+        found_entity_index = None
+        i=0
+        for hf_entity in hf_entities:
+            if hf_entity["name"] == category:
+                found_entity_index = i
+                break
+            i = i + 1
+        
+        # create it if it doesnt and return 
+        if found_entity_index is None: 
+            hf_entity = {
+                "id": humanfirst.objects.hash_string(category,"entity"),
+                "name": category,
+                "values": [
+                    {
+                        "id": humanfirst.objects.hash_string(category + synonym,"entval"),
+                        "key_value": "learned_annotation",
+                        "synonyms": [
+                            {
+                                "value": synonym
+                            }
+                        ]
+                    }
+                ],
+                "created_at": isonow,
+                "updated_at": isonow
             }
-            # add synonyms
-            for clu_synonyms_object in clu_sublist_object["synonyms"]:
-                found_language = False
-                if clu_synonyms_object["language"] == language:
-                    found_language = True
-                    for clu_synonym in clu_synonyms_object["values"]:
-                        hf_synonym = {
-                            "value": clu_synonym
-                        }
-                        hf_key_value_object["synonyms"].append(copy.deepcopy(hf_synonym))
-                if not found_language:
-                    raise RuntimeError(f'Could not find language synonyms for {language}')
-                hf_entity["values"].append(copy.deepcopy(hf_key_value_object))
+            hf_entities.append(hf_entity)
+            logger.debug(f"Created entity {category} as a list with key_value: learned_annotation with synonym {synonym}")
+            return hf_entities
+
+        # otherwise it must have been found and we have the index
+        # check if the synonym is in the entity and return if it is 
+        for hf_value in hf_entities[found_entity_index]["values"]:
+            for hf_synonym in hf_value["synonyms"]:
+                if hf_synonym["value"] == synonym:
+                    logger.debug(f'Synonym: {synonym} already exists within key_value: {hf_value["key_value"]} for entity {category}')
+                    return hf_entities
+        
+        # otherwise we check whether we already have learned_annotation to add to
+        for hf_value in hf_entities[found_entity_index]["values"]:
+            if hf_value["key_value"] == "learned_annotation":
+                hf_value["synonyms"].append({
+                    "value": synonym
+                })
+                logger.debug(f"Synonym: {synonym} added to key_value: learned_entities for entity {category}")
+                return hf_entities
+        
+        # otherwise we need to create a new learned_annotation
+        hf_value = {
+            "id": humanfirst.objects.hash_string(category + synonym,"entval"),
+            "key_value": "learned_annotation",
+            "synonyms": [
+                {
+                    "value": synonym
+                }
+            ]
+        }
+        hf_entities[found_entity_index]["values"].append(hf_value)
+        logger.debug(f"Synonym: {synonym} added to created key_value: learned_entities for entity {category}")
+        return hf_entities
+    
+    
+    def find_key_value_for_synonym(self, hf_entities: dict, category: str, synonym: str) -> str:
+        """Finds the key_value for a synonym in a list of entities and returns
+        an empty string if it can't find it."""
+        
+        # Search to see if the matching list entity exists.
+        for hf_entity in hf_entities:
+            if hf_entity["name"] == category:
+                for hf_value in hf_entity["values"]:
+                    for hf_synonym in hf_value["synonyms"]:
+                        if hf_synonym["value"] == synonym:
+                            return hf_value["key_value"]
+        return ""
+                
+
+    def clu_to_hf_list_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
+        """Builds a HF entity object for any clu lists"""
+        
+        try:
+            # hf_entity using name to generate hash id
+            isonow = datetime.now().isoformat()
+            hf_entity =  {
+                "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
+                "name": clu_entity_object["category"],
+                "values": [],
+                "created_at": isonow,
+                "updated_at": isonow
+            }
+            
+            # replace @
+            hf_entity = at_replacer(hf_entity)
+
+            # add key values
+            for clu_sublist_object in clu_entity_object["list"]["sublists"]:
+                hf_key_value_object = {
+                    "id": humanfirst.objects.hash_string(clu_entity_object["category"] + clu_sublist_object["listKey"],"entval"),
+                    "key_value": clu_sublist_object["listKey"],
+                    "synonyms": []
+                }
+                # add synonyms
+                for clu_synonyms_object in clu_sublist_object["synonyms"]:
+                    found_language = False
+                    if clu_synonyms_object["language"] == language:
+                        found_language = True
+                        for clu_synonym in clu_synonyms_object["values"]:
+                            hf_synonym = {
+                                "value": clu_synonym
+                            }
+                            hf_key_value_object["synonyms"].append(copy.deepcopy(hf_synonym))
+                    if not found_language:
+                        raise RuntimeError(f'Could not find language synonyms for {language}')
+                    hf_entity["values"].append(copy.deepcopy(hf_key_value_object))
+        except Exception as e:
+            logger.error(json.dumps(clu_entity_object,indent=2))
+            raise
+            # Need some sort of debug here
 
         return copy.deepcopy(hf_entity)
 
@@ -337,6 +459,156 @@ class clu_to_hf_converter:
             tags=[{"id": hf_workspace.tag(tag_name).id }]
         )
 
+    def clu_to_hf_one_word_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
+        """Builds a HF entity object list object out of entities in
+        CLU with just a name value."""
+        
+        try:
+            # hf_entity using name to generate hash id
+            isonow = datetime.now().isoformat()
+            hf_entity =  {
+                "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
+                "name": clu_entity_object["category"],
+                "values": [
+                    {
+                        "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entval"),
+                        "key_value": clu_entity_object["category"],
+                        "synonyms": [
+                            {
+                                "value": clu_entity_object["category"]
+                            }
+                        ]
+                    }
+                ],
+                "created_at": isonow,
+                "updated_at": isonow
+            }
+            
+            # replace @
+            hf_entity = at_replacer(hf_entity)
+
+        except Exception as e:
+            logger.error(json.dumps(clu_entity_object,indent=2))
+            raise
+            # Need some sort of debug here
+
+        return copy.deepcopy(hf_entity)
+
+    def clu_to_hf_prebuilt_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
+        """Builds a HF system object from a CLU prebuilt entity
+        for a limited number of DF compatible types
+        Currently only Datetime and Quantity.Number supported"""
+
+        # These are the 2025-02-10 types of system entities humanfirst supports creating.
+        # based on dialog flow with the assumed CLU types next to in brackets
+        # sys.date
+        # sys.date-time (Datetime)
+        # sys.email
+        # sys.number (Quantity.Number)
+        # sys.phone-number
+        # sys.time
+        # sys.url
+        # sys.zip-code
+        
+        # This is the CLU page
+        # https://learn.microsoft.com/en-us/azure/ai-services/language-service/conversational-language-understanding/prebuilt-component-reference
+
+        # Format - will hide the name in the id for returning to CLU             
+        # {
+        #     "id": "entity-HXTCKVLE45HKHEV3Z7IALSUL",
+        #     "name": "sys.date-time",
+        #     "system_type": "SYS_DATE_TIME",
+        #     "settings": {},
+        #     "created_at": "2025-02-10T15:41:06Z",
+        #     "updated_at": "2025-02-10T15:41:06Z"
+        # },
+        # {
+        #     "id": "entity-EU565KK7IRBPJCKNOEX4XMDE",
+        #     "name": "sys.number",
+        #     "system_type": "SYS_NUMBER",
+        #     "settings": {},
+        #     "created_at": "2025-02-10T15:41:37Z",
+        #     "updated_at": "2025-02-10T15:41:37Z"
+        # }
+        
+        # CLU FORMAT
+        #  {
+        #         "category": "builtin.number",
+        #         "compositionSetting": "combineComponents",
+        #         "prebuilts": [
+        #             {
+        #                 "category": "Quantity.Number"
+        #             }
+        #         ]
+        #     },
+
+           
+        try:
+            # hf_entity skeleton regex using name to generate hash id
+            isonow = datetime.now().isoformat()
+            hf_entity =  {
+                "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
+                "name": clu_entity_object["category"],
+                "system_type":SYSTEM_ENTITY_MAPPER[clu_entity_object["prebuilts"][0]["category"]],
+                "settings": {},
+                "created_at": isonow,
+                "updated_at": isonow
+            }
+            
+            # replace @
+            hf_entity = at_replacer(hf_entity)           
+            
+        except Exception as e:
+            logger.error(json.dumps(clu_entity_object,indent=2))
+            raise
+            # Need some sort of debug here
+
+        return copy.deepcopy(hf_entity)
+
+
+    def clu_to_hf_regex_entity_mapper(self, clu_entity_object: dict, language: str) -> dict:
+        """Builds a HF regex object from a CLU regex entity"""
+        
+        try:            
+            # hf_entity skeleton regex using name to generate hash id
+            isonow = datetime.now().isoformat()
+            hf_entity =  {
+                "id": humanfirst.objects.hash_string(clu_entity_object["category"],"entity"),
+                "name": clu_entity_object["category"],
+                "values": [],
+                "is_regex": True,
+                "settings": {},
+                "created_at": isonow,
+                "updated_at": isonow
+            }
+            
+            # replace @
+            hf_entity = at_replacer(hf_entity)
+            
+            # go through each CLU expression and create a humanfirst value object for it.
+            # language is not preserved - assumed to come back in on reconversion
+            values = []
+            for expression in clu_entity_object["regex"]["expressions"]:
+                hf_value_object = {
+                    "id": f'entval-{expression["regexKey"]}',
+                    "key_value": expression["regexPattern"],
+                    "synonyms": [
+                        {
+                            "value": expression["regexPattern"]
+                        }
+                    ]
+                }
+                values.append(hf_value_object)
+            hf_entity["values"] = values
+            
+        except Exception as e:
+            logger.error(json.dumps(clu_entity_object,indent=2))
+            raise
+            # Need some sort of debug here
+
+        return copy.deepcopy(hf_entity)
+
+
 class hf_to_clu_converter:
     def hf_to_clu_process(self,
                         hf_json: dict,
@@ -371,14 +643,51 @@ class hf_to_clu_converter:
             logger.info(f'Found test_tag_id: {test_tag_id}\n')
         else:
             logger.info('No test_tag_id found.\n')
+            
+        # entities - have to do ahead of utterances as the utterances will need to refer back to them.
+        clu_json["assets"]["entities"] = []
+        if "entities" in hf_json:
+            for hf_entity in hf_json["entities"]:
+                # if goes here of different entity types
+                
+                # check if regex
+                if "is_regex" in hf_entity:
+                    clu_json["assets"]["entities"].append(self.hf_to_clu_regex_entity_mapper(hf_entity,language))             
+                # check if system
+                elif "system_type" in hf_entity:
+                    if hf_entity["system_type"] in ["SYS_DATE_TIME","SYS_NUMBER"]:
+                        clu_json["assets"]["entities"].append(self.hf_to_clu_prebuilt_entity_mapper(hf_entity,language))             
+                    else:
+                        logger.warning("SystemType not supported")    
+                # else we are going to assume list (learned) will come from annotations
+                else:
+                    if not "values" in hf_entity:
+                        logger.warning("No values in entity")
+                        continue
+                    else:
+                        clu_json["assets"]["entities"].append(self.hf_to_clu_list_entity_mapper(hf_entity,language))
 
         # examples section
         df_examples = pandas.json_normalize(hf_json["examples"])
-        logger.info(df_examples)
+        # logger.info(df_examples)
         df_examples["clu_utterance"] = df_examples.apply(self.hf_to_clu_utterance_mapper,
                                                         args=[language,hf_workspace,test_tag_id,skip],
                                                         axis=1)
         clu_json["assets"]["utterances"] = df_examples["clu_utterance"].to_list()
+        
+        # go through and update all the clu_entities with requiredComponent = ['learned']
+        # where they have any annotations
+        # find every utterance
+        for clu_utterance in clu_json["assets"]["utterances"]:
+            # where it has entity annotations find each one
+            for clu_entity_annotation in clu_utterance["entities"]:
+                # search for that same entity name within the entities
+                for clu_entity in clu_json["assets"]["entities"]:
+                    # Check if learned is already set and if not set it.
+                    if clu_entity_annotation["category"] == clu_entity["category"]:
+                        if not "requiredComponents" in clu_entity:
+                            clu_entity["requiredComponents"] = ["learned"]
+                        break      
 
         # find any intents that were in utterances
         # this avoids creating any parents, but also doesn't create empty children
@@ -397,12 +706,6 @@ class hf_to_clu_converter:
         #
         clu_json["assets"]["intents"] = clu_intents
 
-        # entities
-        clu_json["assets"]["entities"] = []
-        if "entities" in hf_json:
-            for hf_entity in hf_json["entities"]:
-                    clu_json["assets"]["entities"].append(self.hf_to_clu_entity_mapper(hf_entity,language))
-
         return clu_json
 
     def hf_to_clu_intent_mapper(self, intent_name: str) -> dict:
@@ -413,8 +716,95 @@ class hf_to_clu_converter:
             "category": intent_name
         }
 
-    def hf_to_clu_entity_mapper(self, hf_entity: dict, language: str) -> dict:
-        """converts hf entity format to clu entity format"""
+    def hf_to_clu_prebuilt_entity_mapper(self, hf_entity: dict, language: str) -> dict:
+        """converts hf system entity format to clu prebuilt entity format"""
+        # {
+        #     "category": "builtin.number",
+        #     "compositionSetting": "combineComponents",
+        #     "prebuilts": [
+        #         {
+        #             "category": "Quantity.Number"
+        #         }
+        #     ]
+        # },
+
+        try:
+            # build entity object
+            clu_entity_object = {
+                "category": hf_entity["name"],
+                "compositionSetting": "combineComponents",
+                "prebuilts": [
+                    {
+                        "category": SYSTEM_ENTITY_REVERSER[hf_entity["system_type"]]
+                    }
+                    
+                ]
+            }
+            
+            # put back @
+            clu_entity_object = at_reverser(clu_entity_object)
+
+        except Exception as e:
+            logger.error(json.dumps(hf_entity,indent=2))
+            raise
+            # Need some sort of debug here  
+
+        # return copy of entity
+        return copy.deepcopy(clu_entity_object)
+
+    def hf_to_clu_regex_entity_mapper(self, hf_entity: dict, language: str) -> dict:
+        """converts hf regex entity format to clu regex entity format"""
+        # {
+        #     "category": "telefoonnummer",
+        #     "compositionSetting": "combineComponents",
+        #     "regex": {
+        #         "expressions": [
+        #             {
+        #                 "regexKey": "tel_mobiel_vast",
+        #                 "language": "nl",
+        #                 "regexPattern": "\\b(0[1-9][0-9]{1,2})[ -]?[0-9]{3}[ -]?[0-9]{4}|(06)[ -]?[0-9]{2}[ -]?[0-9]{3}[ -]?[0-9]{3}\\b"
+        #             },
+        #             {
+        #                 "regexKey": "mobiel",
+        #                 "language": "nl",
+        #                 "regexPattern": "\\b(((\\\\+31|0|0031)6){1}[1-9]{1}[0-9]{7})\\b"
+        #             },
+        #         ]
+        #     }
+        # },
+
+        try:
+            # build entity object
+            clu_entity_object = {
+                "category": hf_entity["name"],
+                "compositionSetting": "combineComponents",
+                "regex": {
+                    "expressions": []
+                }
+            }
+            
+            # put back @
+            clu_entity_object = at_reverser(clu_entity_object)
+
+            # fill list with key values
+            for hf_key_value_object in hf_entity["values"]:
+                clu_expression = {
+                    "regexKey": str(hf_key_value_object["source"]["merged_ids"][-1]).replace("entval-",""), # remove entval from the ID to recreate the key
+                    "language": language,
+                    "regexPattern": hf_key_value_object["synonyms"][0]["value"]
+                }
+                clu_entity_object["regex"]["expressions"].append(copy.deepcopy(clu_expression))
+
+        except Exception as e:
+            logger.error(json.dumps(hf_entity,indent=2))
+            raise
+            # Need some sort of debug here  
+
+        # return copy of entity
+        return copy.deepcopy(clu_entity_object)
+
+    def hf_to_clu_list_entity_mapper(self, hf_entity: dict, language: str) -> dict:
+        """converts hf entity format to clu list entity format"""
         # known_entity_key_types = ["prebuilts","list","requiredComponents"]
         # script_supported_types = ["list"]
 
@@ -427,37 +817,45 @@ class hf_to_clu_converter:
         #     warnings.warn(f'Unknown entity type keys are: {entity.keys()}')
         #     continue:
 
-        # build entity object
-        clu_entity_object = {
-            "category": hf_entity["name"],
-            "compositionSetting": "combineComponents",
-            "list": {
-                "sublists": []
+        try:
+            # build entity object
+            clu_entity_object = {
+                "category": hf_entity["name"],
+                "compositionSetting": "combineComponents",
+                "list": {
+                    "sublists": []
+                }
             }
-        }
+            
+            # put back @
+            clu_entity_object = at_reverser(clu_entity_object)
 
-        # fill list with key values
-        for hf_key_value_object in hf_entity["values"]:
-            clu_sublist_object = {
-                "listKey": hf_key_value_object["key_value"],
-                "synonyms": [
-                    {
-                        "language": language,
-                        "values": []
-                    }
-                ]
-            }
+            # fill list with key values
+            for hf_key_value_object in hf_entity["values"]:
+                clu_sublist_object = {
+                    "listKey": hf_key_value_object["key_value"],
+                    "synonyms": [
+                        {
+                            "language": language,
+                            "values": []
+                        }
+                    ]
+                }
 
-            # fill values with values
-            if "synonyms" in hf_key_value_object:
-                for synonym in hf_key_value_object["synonyms"]:
-                    clu_sublist_object["synonyms"][0]["values"].append(synonym["value"])
-            else:
-                # Every entity value should have atleast a synonym
-                clu_sublist_object["synonyms"][0]["values"].append(hf_key_value_object["key_value"])
+                # fill values with values
+                if "synonyms" in hf_key_value_object:
+                    for synonym in hf_key_value_object["synonyms"]:
+                        clu_sublist_object["synonyms"][0]["values"].append(synonym["value"])
+                else:
+                    # Every entity value should have atleast a synonym
+                    clu_sublist_object["synonyms"][0]["values"].append(hf_key_value_object["key_value"])
 
-            # insert sublist into entity
-            clu_entity_object["list"]["sublists"].append(copy.deepcopy(clu_sublist_object))
+                # insert sublist into entity
+                clu_entity_object["list"]["sublists"].append(copy.deepcopy(clu_sublist_object))
+        except Exception as e:
+            logger.error(json.dumps(hf_entity,indent=2))
+            raise
+            # Need some sort of debug here  
 
         # return copy of entity
         return copy.deepcopy(clu_entity_object)
@@ -476,7 +874,6 @@ class hf_to_clu_converter:
             if isinstance(row["tags"],list):
                 for tag in row["tags"]:
                     if tag["id"] == test_tag_id:
-                        # logger.info("Found")
                         dataset = TEST
                         break
             elif pandas.isna(row["tags"]):
@@ -504,6 +901,11 @@ class hf_to_clu_converter:
                         }
 
                     clu_entities.append(clu_annotation)
+        
+            # So all the annotations are here but we need to add back in the requiredComponent for learned
+            # So if it has annotations we assume it has learned and that is required only assumption possible
+            # Can't do it here in the code as we need to add the information to the clu_entity object
+            # not the utterance annotation.
 
         return {
             "text": row["text"],

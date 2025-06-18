@@ -28,7 +28,7 @@ from hf_integration.workspace_service import WorkspaceService
 from hf_integration.workspace_clu import WorkspaceServiceCLU
 from hf_integration.workspace_example import WorkspaceServiceExample
 
-MAX_MESSAGE_LENGTH = 8000000
+MAX_MESSAGE_LENGTH = 200 << 20
 
 def cleanup_logging_handlers():
     # Remove all existing handlers

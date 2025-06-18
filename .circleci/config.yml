@@ -13,12 +13,6 @@ workflows:
 
 
 aliases:
-  - &configure_buildx_context
-    name: Configure remote docker buildx context
-    command: |
-      docker buildx create --name remote-kubernetes --driver remote --driver-opt cacert=/certs/ca.pem,cert=/certs/cert.pem,key=/certs/key.pem tcp://buildkitd-0.buildkitd-headless.circleci.svc.cluster.local:1234
-      docker buildx use remote-kubernetes
-
   - &gcp_auth
     name: "Authenticate to Google Cloud"
     command: |
@@ -59,12 +53,13 @@ jobs:
   build-docker-image:
     docker:
       - image: cimg/base:current-22.04
-    resource_class: zia-ai/small
+    resource_class: small
     steps:
       - checkout
-      - run: *configure_buildx_context
       - run: *gcp_auth
       - run: *configure_docker_credential
+      - setup_remote_docker:
+          docker_layer_caching: false
       - run:
           name: Build docker image
           command: |

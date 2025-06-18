@@ -156,9 +156,9 @@ class clu_apis:
                            project_name: str,
                            des: str,
                            language: str = "en-us",
-                           confidence_threshold: float = 0.5,
+                           confidence_threshold: float = 0.0,
                            normalize_casing: bool = False,
-                           project_kind: str = "Conversation",
+                           project_kind: str = "Conversation", # Other option - Orchestration
                            multilingual: bool = False
                            ) -> None:
         """Create a new project
@@ -166,7 +166,7 @@ class clu_apis:
         Project kind supported is conversation
         Disabled multilingual
         Project settings
-            Threshold: 0.5
+            Threshold: 0.0
             NormalizeCasing: False // This preserves the case of the utterances
         """
 

@@ -135,7 +135,7 @@ Example command installing CLI-1.35.0
 
     Example:
     ```
-    poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,clu_language::en-us,clu_multilingual::True,clu_training_mode::standard,max_batch_size::500,training_delimiter::---"
+    poetry run python3 -m hf_integration.main ./credentials/my_org-mtls-credentials.json 0.0.0.0:443 clu "clu_endpoint::$CLU_ENDPOINT,clu_key::$CLU_KEY,clu_language::en-us,clu_multilingual::True,clu_training_mode::standard,max_batch_size::500,training_delimiter::---,clu_confidence_threshold::0.0,clu_normalize_casing::False"
 
     CLU config params:
     clu_endpoint
@@ -146,6 +146,8 @@ Example command installing CLI-1.35.0
     clu_multilingual
     clu_training_mode
     max_batch_size
+    clu_confidence_threshold
+    clu_normalize_casing
     ```
 
 10. IF the IP address of the integration server changes, then use the following command to set the IP address of the integration server in the HF
@@ -183,15 +185,17 @@ Follow the steps here - https://www.notion.so/humanfirst/Custom-NLU-d4bb84f08676
 
 **8. The integration would skip empty intents and takes into account only that has training phrases in them**
 
-**9. Specifying the delimiter in GUI whie exporting doesn't do anything.**
+**9. Set the delimiter right when you start the integration**
 
-**10. Set the delimiter right when you start the integration**
+**10. If the evaluation in HF side performs retry logic, then it does not send any request to delete the agent which was having issues it created in the clu**
 
-**11. If the evaluation in HF side performs retry logic, then it does not send any request to delete the agent which was having issues it created in the clu**
+**11. Before running NLU training, ensure to perform bi-directional sync.**
 
-**12. Before running NLU training, ensure to perform bi-directional sync.**
+**12. Remove train tag while importing from CLU**
 
-**13. Remove train tag while importing from CLU**
+**13. Train test split uses only training dataset for splitting. Hence we use 100% train and 0% test split.**
+
+**14. To perform evaluation of "Test" utterances, perform blind test in HF tool**
 
 ## Handling cancellations
 ### Cancellation Callback:
