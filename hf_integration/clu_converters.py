@@ -250,48 +250,70 @@ class clu_to_hf_converter:
             # add it to the json    
             hf_json["entities"].append(entity)
 
-        
-        # Entity annotation section
-        error_annotated_text = []
-        error_full_text = []
-        error_full_intent_name = []
-        
-        # For every utterance in the inbound CLU file
-        for i,_ in enumerate(clu_json["assets"]["utterances"]):
-            # see if it has entities annotating the utterance
-            if "entities" in clu_json["assets"]["utterances"][i]:
-                # if it does and it's not blank
-                if clu_json["assets"]["utterances"][i]["entities"] != []:
-                    # Fill out the entities
-                    hf_json["examples"][i]["entities"] = []
-                    # For each CLU annotation build the HF annotation
-                    for clu_annotation in clu_json["assets"]["utterances"][i]["entities"]:
-                                                
-                        # Work out based on the offset and length the span and synonym
-                        start_char_index = clu_annotation["offset"]
-                        end_char_index = clu_annotation["offset"] + clu_annotation["length"]
-                        start_byte_index = utf8span(clu_json["assets"]["utterances"][i]["text"], start_char_index)
-                        end_byte_index = utf8span(clu_json["assets"]["utterances"][i]["text"], end_char_index)
-                        synonym = clu_json["assets"]["utterances"][i]["text"][start_char_index:end_char_index]
-                                               
-                        # Check here we have the entity keys and values created in humanfirst by a list entity
-                        # if not create it
-                        hf_json["entities"] = self.check_and_update_list_entity(hf_json["entities"],clu_annotation["category"],synonym,language)
-                        
-                        
-                        hf_annotation = {
-                            "name": clu_annotation["category"],
-                            "text": synonym,
-                            "span": {
-                                "from_character": start_byte_index,
-                                "to_character": end_byte_index
-                            },
-                            "value": self.find_key_value_for_synonym(hf_json["entities"],clu_annotation["category"],synonym)
-                        }
 
-                        hf_json["examples"][i]["entities"].append(hf_annotation)
-        if len(error_annotated_text) != 0:
-            raise RuntimeError(f"Error annotatations: {error_annotated_text}\nIn corresponding utterance list : {error_full_text}\nIn corresponding intent list {error_full_intent_name}\nDon't exists in any entities")
+        # Entity annotation section
+        # Create text-based mapping for reliable matching (handles both deduplication and potential reordering)
+        example_map = {}
+        for example in hf_json["examples"]:
+            example_map[example["text"]] = example
+
+        # Initialize all examples with empty entities list ONCE before processing
+        for example in hf_json["examples"]:
+            example["entities"] = []
+
+        # Track how many CLU utterances map to each HF example (for logging)
+        example_match_counts = {}
+
+        # For every utterance in the inbound CLU file
+        for clu_utterance in clu_json["assets"]["utterances"]:
+            # see if it has entities annotating the utterance
+            if "entities" in clu_utterance and clu_utterance["entities"]:
+                utterance_text = clu_utterance["text"]
+
+                # Find matching example by text (not by index)
+                if utterance_text not in example_map:
+                    logger.error(f"CLU utterance text not found in HF examples: {utterance_text[:50]}...")
+                    continue
+
+                # Track multiple CLU utterances mapping to same HF example
+                example_match_counts[utterance_text] = example_match_counts.get(utterance_text, 0) + 1
+                if example_match_counts[utterance_text] > 1:
+                    logger.info(f"Multiple CLU utterances with same text (total: {example_match_counts[utterance_text]}): {utterance_text[:50]}...")
+
+                # Get the matched example (DO NOT reset entities list - it was initialized above)
+                matched_example = example_map[utterance_text]
+
+                # For each CLU annotation build the HF annotation
+                for clu_annotation in clu_utterance["entities"]:
+
+                    # Work out based on the offset and length the span and synonym
+                    start_char_index = clu_annotation["offset"]
+                    end_char_index = clu_annotation["offset"] + clu_annotation["length"]
+                    start_byte_index = utf8span(utterance_text, start_char_index)
+                    end_byte_index = utf8span(utterance_text, end_char_index)
+                    synonym = utterance_text[start_char_index:end_char_index]
+
+                    # Validate extraction
+                    if not synonym:
+                        logger.error(f"Empty synonym extracted at offset {start_char_index} for: {utterance_text[:50]}...")
+                        continue
+
+                    # Check here we have the entity keys and values created in humanfirst by a list entity
+                    # if not create it
+                    hf_json["entities"] = self.check_and_update_list_entity(hf_json["entities"],clu_annotation["category"],synonym,language)
+
+
+                    hf_annotation = {
+                        "name": clu_annotation["category"],
+                        "text": synonym,
+                        "span": {
+                            "from_character": start_byte_index,
+                            "to_character": end_byte_index
+                        },
+                        "value": self.find_key_value_for_synonym(hf_json["entities"],clu_annotation["category"],synonym)
+                    }
+
+                    matched_example["entities"].append(hf_annotation)
         return hf_json
 
     def check_and_update_list_entity(self, hf_entities: list, category: str, synonym: str, language: str) -> dict:
